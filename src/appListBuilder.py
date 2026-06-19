@@ -9,7 +9,7 @@ API_URL = "https://api.steampowered.com/IStoreService/GetAppList/v1/"
 MAX_RESULTS = 50000  # Maximum allowed by the API
 
 
-def fetch_page(api_key, last_appid=None):
+def _fetch_page(api_key, last_appid=None):
     """
     Fetch a single page of apps from the Steam API.
     Returns the parsed JSON response, or raises on failure.
@@ -44,7 +44,7 @@ def fetch_all_apps(api_key):
     while True:
         print(f"Fetching page {page} (last_appid={last_appid})")
 
-        data = fetch_page(api_key, last_appid)
+        data = _fetch_page(api_key, last_appid)
         apps = data.get("response", {}).get("apps", [])
 
         if not apps:
