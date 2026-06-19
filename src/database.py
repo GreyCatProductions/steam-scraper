@@ -28,4 +28,5 @@ def saveGamePageInfo(gamePage: GamePage):
     db["apps"].upsert(  # type: ignore[union-attr]
         dataclasses.asdict(gamePage),
         pk="appid",  # type: ignore[arg-type]
+        alter=True,  # type: ignore[arg-type]
     )

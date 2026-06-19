@@ -63,8 +63,11 @@ def process_app_steam_pages():
         if r is None or not r.ok:
             continue
 
-        data: GamePage = extract(r.text)
-        saveGamePageInfo(data)
+        try:
+            data: GamePage = extract(r.text)
+            saveGamePageInfo(data)
+        except Exception as e:
+            tqdm.write(f"Failed to extract/save {url}: {e}")
         
         time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
 
@@ -73,12 +76,14 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("-k", "--key", help="Steam Web API key (fetches live data)")
     source.add_argument("-al", "--app-list", help="Path to existing app list JSON file")
+    parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip fetching the app list and go straight to scraping pages")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     args = parser.parse_args()
 
     init_db(args.output)
 
-    fill_app_entries(args)
+    if not args.skip_app_list_fetch:
+        fill_app_entries(args)
     process_app_steam_pages()
 
 if __name__ == "__main__":
