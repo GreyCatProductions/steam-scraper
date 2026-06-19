@@ -37,7 +37,7 @@ def process_app_steam_pages():
     MAX_SLEEP = 3
     ATTEMPTS_ON_FAIL = 5
 
-    for app in tqdm(getApps(), total=countApps(), desc="Scraping pages"):
+    for app in tqdm(getApps(unscraped_only=True), total=countApps(unscraped_only=True), desc="Scraping pages"):
         url = reconstruct_steam_url(app.appid)
 
         r = None

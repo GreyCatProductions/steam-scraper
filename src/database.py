@@ -17,12 +17,15 @@ def addApps(apps: list[SteamApp]):
         pk="appid",  # type: ignore[arg-type]
     )
     
-def getApps() -> Generator[SteamApp, None, None]:
-    for row in db["apps"].rows:  # type: ignore[union-attr]
+def getApps(unscraped_only: bool = False) -> Generator[SteamApp, None, None]:
+    table = db["apps"]  # type: ignore[union-attr]
+    rows = table.rows_where("scraped_ok IS NOT 1") if unscraped_only else table.rows
+    for row in rows:
         yield SteamApp.from_dict(row)
 
-def countApps() -> int:
-    return db["apps"].count  # type: ignore[union-attr]
+def countApps(unscraped_only: bool = False) -> int:
+    table = db["apps"]  # type: ignore[union-attr]
+    return table.count_where("scraped_ok IS NOT 1") if unscraped_only else table.count
         
 def saveGamePageInfo(gamePage: GamePage):
     db["apps"].upsert(  # type: ignore[union-attr]
