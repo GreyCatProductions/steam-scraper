@@ -1,0 +1,7 @@
+Google (spot) VMs für IP rotation
+
+1. Liste (apps) initialisieren
+2. Indexes auf VMs verteilen
+	1. Info extrahieren (alles)
+	2. Daten zurück an Work Station/Server
+3. Datenbank Einträge
