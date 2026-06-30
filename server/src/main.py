@@ -1,17 +1,11 @@
 import argparse
 import json
-import random
-import time
-import requests
-from fastapi import FastAPI
 import uvicorn
 from server.src.appListBuilder import fetch_all_apps
 from shared.schema.data_objects import SteamApp
-from server.src.database import addApps, getApps, countApps, init_db, saveGamePageInfo
-from client.src.pageExtractor import extract
-from shared.schema.steamPage import GamePage
-from shared.utils import reconstruct_steam_url
-from api import app
+import server.src.database as database
+from server.src.api import app
+
 
 def fill_app_entries(args: argparse.Namespace):
     '''
@@ -22,16 +16,17 @@ def fill_app_entries(args: argparse.Namespace):
     def iter_pages_from_json(path: str):
         with open(path, encoding="utf-8") as f:
             yield json.load(f)
-            
+
     pages = iter_pages_from_json(args.app_list) if args.app_list else fetch_all_apps(args.key)
 
     total = 0
     for page in pages:
         apps = [SteamApp.from_dict(a) for a in page]
-        addApps(apps)
+        database.get_db().add_apps(apps)
         total += len(apps)
-        
+
     print(f"{total} apps saved to {args.output}")
+
 
 def main():
     parser = argparse.ArgumentParser(prog="Steam scraper", description="Scrape Steam app list into SQLite")
@@ -42,11 +37,13 @@ def main():
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     args = parser.parse_args()
 
-    init_db(args.output)
+    database.init(args.output)
 
     if not args.skip_app_list_fetch:
         fill_app_entries(args)
 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
 if __name__ == "__main__":
     main()
-    uvicorn.run(app, host="0.0.0.0", port=8000)
