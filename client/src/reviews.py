@@ -1,4 +1,5 @@
 import time
+from typing import Generator
 import requests
 from shared.schema.review import UserReview
 
@@ -7,13 +8,9 @@ _REVIEWS_URL = "https://store.steampowered.com/appreviews/{appid}"
 _PER_PAGE = 100
 
 
-def fetch_reviews(appid: int, language: str = "all", max_reviews: int | None = None) -> list[UserReview]:
-    '''
-        Fetches all reviews for an app via the Steam reviews API.
-        Paginates using the cursor until no more reviews are returned.
-    '''
-    reviews: list[UserReview] = []
+def iter_reviews(appid: int, language: str = "all", max_reviews: int | None = None) -> Generator[list[UserReview], None, None]:
     cursor = "*"
+    total = 0
 
     while True:
         try:
@@ -24,6 +21,8 @@ def fetch_reviews(appid: int, language: str = "all", max_reviews: int | None = N
                     "num_per_page": _PER_PAGE,
                     "language": language,
                     "filter": "all",
+                    "review_type": "all",
+                    "purchase_type": "all",
                     "cursor": cursor,
                 },
                 timeout=15,
@@ -32,25 +31,33 @@ def fetch_reviews(appid: int, language: str = "all", max_reviews: int | None = N
             data = r.json()
         except requests.RequestException as e:
             print(f"Failed to fetch reviews for {appid}: {e}")
-            break
+            return
 
         if data.get("success") != 1:
-            break
+            return
 
-        batch = data.get("reviews", [])
-        reviews.extend(UserReview.from_dict(appid, rv) for rv in batch)
-        print(f"\rFetched {len(reviews)} reviews...", end="", flush=True)
+        batch = [UserReview.from_dict(appid, rv) for rv in data.get("reviews", [])]
+        if not batch:
+            return
 
-        if len(batch) < _PER_PAGE:
-            break
+        yield batch
+        total += len(batch)
 
-        if max_reviews is not None and len(reviews) >= max_reviews:
-            break
+        if max_reviews is not None and total >= max_reviews:
+            return
 
-        cursor = data["cursor"]
+        new_cursor = data.get("cursor", "")
+        if not new_cursor or new_cursor == cursor:
+            return
+
+        cursor = new_cursor
         time.sleep(1.0)
 
-    print()
+
+def fetch_reviews(appid: int, language: str = "all", max_reviews: int | None = None) -> list[UserReview]:
+    reviews: list[UserReview] = []
+    for batch in iter_reviews(appid, language, max_reviews):
+        reviews.extend(batch)
     return reviews
 
 

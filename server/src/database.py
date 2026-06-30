@@ -22,6 +22,7 @@ class Database:
             self._db["apps"].upsert_all(  # type: ignore[union-attr]
                 [dataclasses.asdict(a) for a in apps],
                 pk="appid",  # type: ignore[arg-type]
+                alter=True,  # type: ignore[arg-type]
             )
 
     def _scraped_col_exists(self) -> bool:

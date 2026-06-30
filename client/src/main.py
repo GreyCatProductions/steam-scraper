@@ -5,7 +5,7 @@ import time
 import requests
 from tqdm import tqdm
 from client.src.pageExtractor import extract
-from client.src.reviews import fetch_reviews
+from client.src.reviews import iter_reviews
 from shared.schema.data_objects import SteamApp
 from shared.schema.review import UserReview
 from shared.schema.steamPage import GamePage
@@ -95,18 +95,24 @@ def run(server_url: str, batch_size: int) -> None:
                 tqdm.write(f"Failed to submit results: {e}")
 
         valid_pages = [p for p in results if p.scraped_ok]
-        all_reviews: list[UserReview] = []
         for page in tqdm(valid_pages, desc="Fetching reviews"):
-            reviews = fetch_reviews(page.appid)
-            all_reviews.extend(reviews)
-            tqdm.write(f"  appid {page.appid}: {len(reviews)} reviews")
-
-        if all_reviews:
-            try:
-                submit_reviews(server_url, all_reviews)
-                tqdm.write(f"Submitted {len(all_reviews)} reviews")
-            except requests.RequestException as e:
-                tqdm.write(f"Failed to submit reviews: {e}")
+            chunk: list[UserReview] = []
+            total = 0
+            for batch in iter_reviews(page.appid):
+                chunk.extend(batch)
+                total += len(batch)
+                if len(chunk) >= 100:
+                    try:
+                        submit_reviews(server_url, chunk)
+                    except requests.RequestException as e:
+                        tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+                    chunk = []
+            if chunk:
+                try:
+                    submit_reviews(server_url, chunk)
+                except requests.RequestException as e:
+                    tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+            tqdm.write(f"  appid {page.appid}: {total} reviews")
 
 
 def main():
