@@ -51,13 +51,13 @@ def _extract_release_date(soup: BeautifulSoup) -> str:
     return ""
 
 
-def _extract_early_access_date(soup: BeautifulSoup) -> Optional[str]:
+def _extract_early_access_date(soup: BeautifulSoup) -> str:
     details_block = soup.find(id="genresAndManufacturer")
     if details_block:
         m = re.search(r"Early Access Release Date:\s*(.+?)(?:\n|$)", details_block.get_text())
         if m:
             return m.group(1).strip()
-    return None
+    return ""
 
 
 def _extract_developers(soup: BeautifulSoup) -> list[str]:
@@ -108,11 +108,11 @@ def _extract_platforms(soup: BeautifulSoup) -> list[str]:
     return []
 
 
-def _extract_price(soup: BeautifulSoup) -> tuple[Optional[int], Optional[int], int, Optional[str]]:
+def _extract_price(soup: BeautifulSoup) -> tuple[Optional[int], Optional[int], int, str]:
     price_final_cents: Optional[int] = None
     price_original_cents: Optional[int] = None
     discount_pct = 0
-    discount_ends: Optional[str] = None
+    discount_ends: str = ""
     main_purchase = soup.find(class_="game_area_purchase_game")
     if main_purchase:
         discount_block = main_purchase.find(class_="discount_block")
@@ -130,11 +130,13 @@ def _extract_price(soup: BeautifulSoup) -> tuple[Optional[int], Optional[int], i
 
 
 def _extract_reviews(soup: BeautifulSoup) -> tuple[
-    Optional[str], Optional[int], Optional[int],
-    Optional[str], Optional[int], Optional[int],
+    str, Optional[int], Optional[int],
+    str, Optional[int], Optional[int],
 ]:
-    summary_recent = count_recent = pct_recent = None
-    summary_all = count_all = pct_all = None
+    summary_recent: str = ""
+    summary_all: str = ""
+    count_recent = pct_recent = None
+    count_all = pct_all = None
     reviews_div = soup.find(id="userReviews")
     if reviews_div:
         for row in reviews_div.find_all("a", class_="user_reviews_summary_row"):
@@ -147,7 +149,7 @@ def _extract_reviews(soup: BeautifulSoup) -> tuple[
             count_m = re.search(r"([\d,]+) user reviews", tooltip)
             pct = int(pct_m.group(1)) if pct_m else None
             count = int(count_m.group(1).replace(",", "")) if count_m else None
-            summary = summary_el.get_text(strip=True) if summary_el else None
+            summary = summary_el.get_text(strip=True) if summary_el else ""
             if label and "Recent" in label.get_text():
                 summary_recent, count_recent, pct_recent = summary, count, pct
             else:
@@ -155,7 +157,7 @@ def _extract_reviews(soup: BeautifulSoup) -> tuple[
     return summary_recent, count_recent, pct_recent, summary_all, count_all, pct_all
 
 
-def _extract_metacritic(soup: BeautifulSoup) -> tuple[Optional[int], Optional[str]]:
+def _extract_metacritic(soup: BeautifulSoup) -> tuple[Optional[int], str]:
     meta_block = soup.find(id="game_area_metascore")
     if meta_block:
         score: Optional[int] = None
@@ -166,17 +168,17 @@ def _extract_metacritic(soup: BeautifulSoup) -> tuple[Optional[int], Optional[st
             except ValueError:
                 pass
         link = meta_block.find("a")
-        return score, (str(link.get("href")) if link else None)
-    return None, None
+        return score, (str(link.get("href")) if link else "")
+    return None, ""
 
 
-def _extract_header_image(soup: BeautifulSoup) -> Optional[str]:
+def _extract_header_image(soup: BeautifulSoup) -> str:
     img = soup.find(class_="game_header_image_full")
-    return str(img.get("src")) if img else None
+    return str(img.get("src")) if img else ""
 
 
-def _extract_website_and_social(soup: BeautifulSoup) -> tuple[Optional[str], dict[str, str]]:
-    website: Optional[str] = None
+def _extract_website_and_social(soup: BeautifulSoup) -> tuple[str, dict[str, str]]:
+    website: str = ""
     social_links: dict[str, str] = {}
     links_block = soup.find(id="appDetailsUnderlinedLinks")
     if links_block:
@@ -268,13 +270,13 @@ def _extract_sys_req(soup: BeautifulSoup, os: str) -> Optional[SysReq]:
     )
 
 
-def _extract_ai_disclosure(soup: BeautifulSoup) -> Optional[str]:
+def _extract_ai_disclosure(soup: BeautifulSoup) -> str:
     content_desc = soup.find(id="game_area_content_descriptors")
     if content_desc:
         p = content_desc.find("i")
         if p:
             return p.get_text(strip=True)
-    return None
+    return ""
 
 
 def _extract_bundle_count(soup: BeautifulSoup) -> int:

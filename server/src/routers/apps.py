@@ -24,5 +24,7 @@ def get_next_batch(batch: int = 50):
 def submit_results(results: list[GamePage]):
     db = get_db()
     for result in results:
+        if not result.is_valid():
+            result.scraped_ok = False
         db.save_game_page_info(result)
     return {"saved": len(results)}
