@@ -60,6 +60,7 @@ class GamePage:
     dlc: list[DLC] = field(default_factory=list)
     sys_req_windows: Optional[SysReq] = None
     sys_req_mac: Optional[SysReq] = None
+    content_descriptor: str = ""
     ai_content_disclosure: str = ""
     bundle_count: int = 0
     scraped_ok: bool = True
