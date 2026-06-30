@@ -3,6 +3,10 @@ from typing import Optional
 
 @dataclass
 class SteamApp:
+    '''
+        Structure given by "https://api.steampowered.com/IStoreService/GetAppList/v1/"
+    '''
+    
     appid: int
     name: str
     last_modified: int
