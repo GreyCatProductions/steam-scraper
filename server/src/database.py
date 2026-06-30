@@ -58,9 +58,15 @@ class Database:
                 table.add_column("claimed_at", int) # type: ignore
             now = int(time.time())
             cutoff = now - timeout_seconds
+            cols = {col.name for col in table.columns}
+            conditions = []
+            params: list = [cutoff]
+            if "scraped_ok" in cols:
+                conditions.append("scraped_ok IS NOT 1")
+            conditions.append("(claimed_at IS NULL OR claimed_at < ?)")
             rows = list(table.rows_where(
-                "scraped_ok IS NOT 1 AND (claimed_at IS NULL OR claimed_at < ?)",
-                [cutoff],
+                " AND ".join(conditions),
+                params,
                 limit=amount,
             ))
             ids = [r["appid"] for r in rows]
