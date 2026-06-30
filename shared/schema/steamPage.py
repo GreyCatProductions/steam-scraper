@@ -66,9 +66,8 @@ class GamePage:
 
     def is_valid(self) -> bool:
         required_str = [self.title, self.short_description, self.description, self.release_date, self.header_image]
-        required_list = [self.developer, self.platforms]
         return bool(
             self.appid
             and all(required_str)
-            and all(required_list)
+            and self.developer
         )
