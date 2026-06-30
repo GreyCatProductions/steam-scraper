@@ -1,8 +1,6 @@
 import dataclasses
-import itertools
 from fastapi import APIRouter
 from server.src.database import get_db
-from shared.schema.data_objects import SteamApp
 from shared.schema.steamPage import GamePage
 
 router = APIRouter(prefix="/apps", tags=["apps"])
@@ -19,8 +17,7 @@ def stats():
 @router.get("/next")
 def get_next_batch(batch: int = 50):
     db = get_db()
-    apps: list[SteamApp] = list(itertools.islice(db.get_apps(unscraped_only=True), batch))
-    return [dataclasses.asdict(a) for a in apps]
+    return [dataclasses.asdict(a) for a in db.claim_apps(batch)]
 
 
 @router.post("/results")
