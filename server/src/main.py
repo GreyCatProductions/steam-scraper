@@ -4,15 +4,20 @@ import random
 import time
 import requests
 from tqdm import tqdm
-from appListBuilder import fetch_all_apps
-from schema.data_objects import SteamApp
-from database import addApps, getApps, countApps, init_db, saveGamePageInfo
-from pageExtractor import extract
-from schema.steamPage import GamePage
-from utils import reconstruct_steam_url
+from server.src.appListBuilder import fetch_all_apps
+from shared.schema.data_objects import SteamApp
+from server.src.database import addApps, getApps, countApps, init_db, saveGamePageInfo
+from client.src.pageExtractor import extract
+from shared.schema.steamPage import GamePage
+from shared.utils import reconstruct_steam_url
 
 
 def fill_app_entries(args: argparse.Namespace):
+    '''
+        Populates the database with basic steam app entries.
+        Reads from a local JSON file if args.app_list is set,
+        otherwise fetches live data from the Steam Web API using args.key.
+    '''
     def iter_pages_from_json(path: str):
         with open(path, encoding="utf-8") as f:
             yield json.load(f)
@@ -76,7 +81,7 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("-k", "--key", help="Steam Web API key (fetches live data)")
     source.add_argument("-al", "--app-list", help="Path to existing app list JSON file")
-    parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip fetching the app list and go straight to scraping pages")
+    parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip fetching the app list and go straight to scraping pages. Only useful if the db is known to be sufficiently filled already")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     args = parser.parse_args()
 
@@ -84,6 +89,7 @@ def main():
 
     if not args.skip_app_list_fetch:
         fill_app_entries(args)
+        
     process_app_steam_pages()
 
 if __name__ == "__main__":

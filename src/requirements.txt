@@ -1,5 +1,0 @@
-beautifulsoup4==4.15.0
-python-dotenv==1.2.2
-Requests==2.34.2
-sqlite_utils==3.39
-tqdm==4.68.3

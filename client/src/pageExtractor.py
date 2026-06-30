@@ -5,7 +5,7 @@ from urllib.parse import unquote
 
 from bs4 import BeautifulSoup, Tag
 
-from schema.steamPage import DLC, SysReq, GamePage
+from shared.schema.steamPage import DLC, SysReq, GamePage
 
 
 def _extract_appid(soup: BeautifulSoup) -> int:
