@@ -61,12 +61,11 @@ class GamePage:
     sys_req_windows: Optional[SysReq] = None
     sys_req_mac: Optional[SysReq] = None
     content_descriptor: str = ""
-    ai_content_disclosure: str = ""
     bundle_count: int = 0
     scraped_ok: bool = True
 
     def is_valid(self) -> bool:
-        required_str = [self.title, self.short_description, self.description, self.release_date, self.header_image]
+        required_str = [self.title, self.short_description, self.description, self.header_image]
         return bool(
             self.appid
             and all(required_str)

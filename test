@@ -1,0 +1,123 @@
+{
+  "appid": 1868140,
+  "title": "DAVE THE DIVER",
+  "short_description": "DAVE THE DIVER is a casual, singleplayer adventure RPG featuring deep-sea exploration and fishing during the day and sushi restaurant management at night. Join Dave and his quirky friends as they seek to uncover the secrets of the mysterious Blue Hole.",
+  "description": "About This Game ・An adventure, RPG, management hybrid Explore and unravel the mysteries in the depths of the Blue Hole by day and run a successful exotic sushi restaurant by night. It’s easy to get hooked on the satisfying gameplay loop! ・Casual combat and gathering gameplay with rogue-like elements Dive into the ever-changing Blue Hole and use a harpoon and other weapons to catch fish and various creatures. Upgrade and forge equipment with collected resources and sushi restaurant profits to prepare for the dangers that lurk in the unknown. Running out of oxygen means leaving collected items and fish behind! ・Eccentric characters with a lighthearted narrative Quirky but lovable characters and a story full of in-jokes, spoofs, and other humorous scenes provide an approachable and enjoyable gameplay experience. ・A beautiful sea environment with attractive 2D/3D Art A combination of pixel and 3D graphics provides a stunning art style that showcases breathtaking underwater scenery. This oceanic adventure is set in the real marine environment of a Blue Hole filled with over 200 kinds of sea creatures. ・Ample additional content to complement the main gameplay loop Minigames, side quests, and multiple storylines provide many hours of entertainment and varied gameplay.",
+  "release_date": "28 Jun, 2023",
+  "early_access_release_date": "26 Oct, 2022",
+  "developer": [
+    "MINTROCKET"
+  ],
+  "publisher": [
+    "MINTROCKET"
+  ],
+  "genres": [
+    "Adventure",
+    "Casual",
+    "RPG",
+    "Simulation"
+  ],
+  "tags": [
+    "Pixel Graphics",
+    "Management",
+    "Casual",
+    "Adventure",
+    "Relaxing",
+    "Exploration",
+    "Fishing",
+    "Singleplayer",
+    "RPG",
+    "Underwater",
+    "Simulation",
+    "Farming Sim",
+    "Story Rich",
+    "Roguelite",
+    "2D",
+    "Crafting",
+    "Funny",
+    "Agriculture",
+    "Action",
+    "Indie"
+  ],
+  "platforms": [
+    "win",
+    "mac"
+  ],
+  "price_final_cents": 999,
+  "price_original_cents": 1999,
+  "discount_pct": 50,
+  "discount_ends": "SPECIAL PROMOTION! Offer ends in",
+  "review_summary_recent": "Very Positive",
+  "review_count_recent": 2790,
+  "review_pct_recent": 93,
+  "review_summary_all": "Overwhelmingly Positive",
+  "review_count_all": 48964,
+  "review_pct_all": 96,
+  "metacritic_score": 90,
+  "metacritic_url": "https://www.metacritic.com/game/pc/dave-the-diver?ftag=MCD-06-10aaa1f",
+  "header_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1868140/661ab93fe661f8f96c6c3cb728719c15c2922eb6/header_alt_assets_2.jpg?t=1782191386",
+  "website": "https://mintrock.et/",
+  "social_links": {
+    "X": "https://x.com/DaveDiverGame",
+    "YouTube": "https://www.youtube.com/channel/UCA_ypVDKXfdRphpL_EpIOKg/",
+    "Discord": "https://discord.gg/davethediver?proof=2d43f8e1cdfec2b7",
+    "Bilibili": "https://space.bilibili.com/1719904184?spm_id_from=333.337.0.0"
+  },
+  "steam_awards": [
+    "Sit Back and Relax Award"
+  ],
+  "press_reviews": [],
+  "dlc": [
+    {
+      "appid": 4394810,
+      "name": "DAVE THE DIVER - In the Jungle Content Pack",
+      "price_final_cents": null,
+      "price_original_cents": null,
+      "discount_pct": 0,
+      "url": "https://store.steampowered.com/app/4394810/DAVE_THE_DIVER__In_the_Jungle_Content_Pack/?snr=1_5_9__405"
+    },
+    {
+      "appid": 3543180,
+      "name": "DAVE THE DIVER - Ichiban's Holiday Content Pack",
+      "price_final_cents": 206,
+      "price_original_cents": 689,
+      "discount_pct": 70,
+      "url": "https://store.steampowered.com/app/3543180/DAVE_THE_DIVER__Ichibans_Holiday_Content_Pack/?snr=1_5_9__405"
+    },
+    {
+      "appid": 2492320,
+      "name": "DAVE THE DIVER Digital Extra",
+      "price_final_cents": 449,
+      "price_original_cents": 899,
+      "discount_pct": 50,
+      "url": "https://store.steampowered.com/app/2492320/DAVE_THE_DIVER_Digital_Extra/?snr=1_5_9__405"
+    },
+    {
+      "appid": 2677020,
+      "name": "DAVE THE DIVER - DREDGE Content Pack",
+      "price_final_cents": null,
+      "price_original_cents": null,
+      "discount_pct": 0,
+      "url": "https://store.steampowered.com/app/2677020/DAVE_THE_DIVER__DREDGE_Content_Pack/?snr=1_5_9__405"
+    },
+    {
+      "appid": 2841140,
+      "name": "DAVE THE DIVER - Godzilla Content Pack",
+      "price_final_cents": null,
+      "price_original_cents": null,
+      "discount_pct": 0,
+      "url": "https://store.steampowered.com/app/2841140/DAVE_THE_DIVER__Godzilla_Content_Pack/?snr=1_5_9__405"
+    }
+  ],
+  "sys_req_windows": {
+    "minimum": "Minimum: OS: Windows 10 64 bit Processor: Intel Core i3 Dual Core Memory: 8 GB RAM Graphics: NVIDIA Geforce GTS 450 / AMD Radeon HD 5570 DirectX: Version 11 Storage: 10 GB available space Sound Card: Windows Compatible Audio Device",
+    "recommended": "Recommended: OS: Windows 10 64 bit Processor: Intel Core i5 (Hexa Core) / i7 (Quad Core) Memory: 16 GB RAM Graphics: NVIDIA GTX 1060 3GB / AMD RX 480 DirectX: Version 11 Storage: 10 GB available space Sound Card: Windows Compatible Audio Device"
+  },
+  "sys_req_mac": {
+    "minimum": "Minimum: OS: Big Sur 11.0 Processor: Intel Core i3 Quad Core 3.6GHz Memory: 8 GB RAM Graphics: Radeon Pro 555X Storage: 11 GB available space",
+    "recommended": "Recommended: OS: Big Sur 11.0 Processor: Apple M2 Memory: 16 GB RAM Graphics: Apple M2 integrated graphics Storage: 11 GB available space"
+  },
+  "content_descriptor": "AI Generated Content Disclosure\nThe developers describe how their game uses AI Generated Content like this:\nGenerative AI is used only to assist with localization/translation. All localized text is reviewed and edited by the developer.\nNo AI-generated art, audio, or in-game live generation is used.",
+  "bundle_count": 11,
+  "scraped_ok": true
+}

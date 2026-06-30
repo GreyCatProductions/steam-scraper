@@ -273,23 +273,7 @@ def _extract_sys_req(soup: BeautifulSoup, os: str) -> Optional[SysReq]:
 def _extract_content_descriptor(soup: BeautifulSoup) -> str:
     content_desc = soup.find(id="game_area_content_descriptors")
     if content_desc:
-        p = content_desc.find("i")
-        if p:
-            return p.get_text(strip=True)
-    return ""
-
-
-def _extract_ai_disclosure(soup: BeautifulSoup) -> str:
-    for h2 in soup.find_all("h2"):
-        if "AI Generated Content Disclosure" in h2.get_text():
-            section = h2.find_parent()
-            if section:
-                lines = [
-                    t.strip()
-                    for t in section.find_all(string=True)
-                    if t.strip() and "AI Generated Content Disclosure" not in t
-                ]
-                return " ".join(lines)
+        return content_desc.get_text("\n", strip=True)
     return ""
 
 
@@ -350,7 +334,6 @@ def extract(html: str) -> GamePage:
         sys_req_windows=_extract_sys_req(soup, "win"),
         sys_req_mac=_extract_sys_req(soup, "mac"),
         content_descriptor=_extract_content_descriptor(soup),
-        ai_content_disclosure=_extract_ai_disclosure(soup),
         bundle_count=_extract_bundle_count(soup),
     )
 

@@ -16,6 +16,8 @@ def fill_app_entries(args: argparse.Namespace):
     def iter_pages_from_json(path: str):
         with open(path, encoding="utf-8") as f:
             yield json.load(f)
+            
+    print(f"Initializing db")
 
     pages = iter_pages_from_json(args.app_list) if args.app_list else fetch_all_apps(args.key)
 
