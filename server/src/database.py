@@ -2,8 +2,8 @@ import dataclasses
 from typing import Generator, Optional
 from enum import Enum
 import sqlite_utils
-from schema.data_objects import SteamApp
-from schema.steamPage import GamePage
+from shared.schema.data_objects import SteamApp
+from shared.schema.steamPage import GamePage
 
 db: Optional[sqlite_utils.Database] = None
 
