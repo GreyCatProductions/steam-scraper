@@ -74,7 +74,7 @@ def main():
     parser = argparse.ArgumentParser(prog="Steam scraper", description="Scrape Steam app list into SQLite")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("-k", "--key", help="Steam Web API key (fetches live data)")
-    source.add_argument("-al", "--app-list", help="Path to existing app list JSON file")
+    source.add_argument("-al", "--app-list", help="Path to existing app list JSON file. If file is given only apps from the list are scraped. No new ones are searched for using API!")
     parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip the initial app list fetch")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
