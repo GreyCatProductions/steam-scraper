@@ -16,6 +16,9 @@ class Database:
         self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
         self._db["reviews"].create({"recommendation_id": int}, pk="recommendation_id", if_not_exists=True)  # type: ignore
+        cols = {col.name for col in self._db["apps"].columns}  # type: ignore
+        if "reviews_scraped" not in cols:
+            self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
 
     def add_apps(self, apps: list[SteamApp]) -> None:
         with self._lock:
