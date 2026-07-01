@@ -37,6 +37,7 @@ def main():
     source.add_argument("-al", "--app-list", help="Path to existing app list JSON file")
     parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip fetching the app list and go straight to scraping pages. Only useful if the db is known to be sufficiently filled already")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
+    parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
     args = parser.parse_args()
 
     database.init(args.output)
@@ -44,7 +45,7 @@ def main():
     if not args.skip_app_list_fetch:
         fill_app_entries(args)
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
 
 
 if __name__ == "__main__":
