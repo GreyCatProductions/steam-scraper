@@ -36,11 +36,24 @@ def weekly_cycle(args: argparse.Namespace) -> None:
     CHECK_INTERVAL = 300
 
     while True:
-        remaining = database.get_db().count_apps(unscraped_only=True)
-        if remaining > 0:
-            print(f"{remaining} apps remaining, checking again in {CHECK_INTERVAL // 60}min...")
+        cycle_start = time.time()
+        total = database.get_db().count_apps()
+        initial_remaining = database.get_db().count_apps(unscraped_only=True)
+
+        while True:
+            remaining = database.get_db().count_apps(unscraped_only=True)
+            if remaining == 0:
+                break
+            elapsed = time.time() - cycle_start
+            scraped = initial_remaining - remaining
+            if scraped > 0:
+                rate = scraped / elapsed
+                eta_seconds = remaining / rate
+                eta = timedelta(seconds=int(eta_seconds))
+                print(f"Progress: {total - remaining}/{total} scraped | {remaining} remaining | rate: {rate * 3600:.0f} apps/hr | ETA: {eta}")
+            else:
+                print(f"Progress: {total - remaining}/{total} scraped | {remaining} remaining | ETA: calculating...")
             time.sleep(CHECK_INTERVAL)
-            continue
 
         wait = seconds_until_next_monday()
         wake = datetime.now() + timedelta(seconds=wait)
