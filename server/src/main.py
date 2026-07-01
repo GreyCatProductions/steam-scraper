@@ -5,6 +5,7 @@ from server.src.appListBuilder import fetch_all_apps
 from shared.schema.data_objects import SteamApp
 import server.src.database as database
 from server.src.api import app
+from scripts.weekly_reset import reset as weekly_reset
 
 
 def fill_app_entries(args: argparse.Namespace):
@@ -38,7 +39,11 @@ def main():
     parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip fetching the app list and go straight to scraping pages. Only useful if the db is known to be sufficiently filled already")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
+    parser.add_argument("--no-reset", action="store_true", help="Skip the weekly backup and reset")
     args = parser.parse_args()
+
+    if not args.no_reset:
+        weekly_reset(db=args.output)
 
     database.init(args.output)
 
