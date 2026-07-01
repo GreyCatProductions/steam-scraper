@@ -13,24 +13,30 @@ def iter_reviews(appid: int, language: str = "all", max_reviews: int | None = No
     total = 0
 
     while True:
-        try:
-            r = requests.get(
-                _REVIEWS_URL.format(appid=appid),
-                params={
-                    "json": 1,
-                    "num_per_page": _PER_PAGE,
-                    "language": language,
-                    "filter": "all",
-                    "review_type": "all",
-                    "purchase_type": "all",
-                    "cursor": cursor,
-                },
-                timeout=15,
-            )
-            r.raise_for_status()
-            data = r.json()
-        except requests.RequestException as e:
-            print(f"Failed to fetch reviews for {appid}: {e}")
+        for attempt in range(5):
+            try:
+                r = requests.get(
+                    _REVIEWS_URL.format(appid=appid),
+                    params={
+                        "json": 1,
+                        "num_per_page": _PER_PAGE,
+                        "language": language,
+                        "filter": "all",
+                        "review_type": "all",
+                        "purchase_type": "all",
+                        "cursor": cursor,
+                    },
+                    timeout=15,
+                )
+                r.raise_for_status()
+                data = r.json()
+                break
+            except requests.RequestException as e:
+                wait = 10 * (2 ** attempt)
+                print(f"Reviews fetch failed for {appid} (attempt {attempt + 1}/5): {e}, retrying in {wait}s")
+                time.sleep(wait)
+        else:
+            print(f"Giving up on reviews for {appid}")
             return
 
         if data.get("success") != 1:
