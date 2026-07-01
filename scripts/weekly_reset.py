@@ -29,10 +29,10 @@ def reset(db: str = "steam.db", backup_dir: str = "backups") -> None:
     print(f"Backed up to {dest}")
 
     conn = sqlite3.connect(db_path)
-    conn.execute("UPDATE apps SET scraped_ok = NULL, claimed_at = NULL")
+    conn.execute("DELETE FROM apps")
     conn.commit()
     conn.close()
-    print(f"Reset scraped_ok and claimed_at on {db_path}")
+    print(f"Cleared apps table in {db_path}")
 
 
 def main():

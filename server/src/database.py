@@ -88,11 +88,21 @@ class Database:
             )
 
     def get_latest_review_timestamp(self, appid: int) -> int:
+        '''
+            Gets the timestamp of the newest review entry fo given appid
+        '''
         with self._lock:
             row = self._db.execute(
                 "SELECT MAX(timestamp_created) FROM reviews WHERE appid = ?", [appid]
             ).fetchone()  # type: ignore
             return row[0] if row and row[0] is not None else 0
+
+    def delete_orphaned_reviews(self) -> int:
+        with self._lock:
+            result = self._db.execute(
+                "DELETE FROM reviews WHERE appid NOT IN (SELECT appid FROM apps)"
+            )  # type: ignore
+            return result.rowcount
 
     def mark_reviews_done(self, appid: int) -> None:
         '''
