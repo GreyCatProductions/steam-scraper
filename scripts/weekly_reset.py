@@ -1,5 +1,4 @@
 import argparse
-import shutil
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -25,13 +24,18 @@ def reset(db: str = "steam.db", backup_dir: str = "backups") -> None:
     bdir.mkdir(exist_ok=True)
 
     dest = next_backup_path(bdir, db_path.stem)
-    shutil.copy2(db_path, dest)
+    src = sqlite3.connect(db_path)
+    dst = sqlite3.connect(dest)
+    try:
+        src.backup(dst)
+    finally:
+        dst.close()
+        src.close()
     print(f"Backed up to {dest}")
 
-    conn = sqlite3.connect(db_path)
-    conn.execute("DELETE FROM apps")
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("DELETE FROM apps")
+        conn.close()
     print(f"Cleared apps table in {db_path}")
 
 

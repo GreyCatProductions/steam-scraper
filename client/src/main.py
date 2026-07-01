@@ -24,12 +24,20 @@ def fetch_batch(server_url: str, batch: int) -> list[SteamApp]:
 
 
 def submit_results(server_url: str, results: list[GamePage]) -> None:
-    r = requests.post(
-        f"{server_url}/apps/results",
-        json=[dataclasses.asdict(p) for p in results],
-        timeout=30,
-    )
-    r.raise_for_status()
+    for attempt in range(5):
+        try:
+            r = requests.post(
+                f"{server_url}/apps/results",
+                json=[dataclasses.asdict(p) for p in results],
+                timeout=30,
+            )
+            r.raise_for_status()
+            return
+        except requests.RequestException as e:
+            wait = 10 * (2 ** attempt)
+            tqdm.write(f"Submit failed (attempt {attempt + 1}/5): {e}, retrying in {wait}s")
+            time.sleep(wait)
+    tqdm.write("Giving up on submitting results")
 
 
 def submit_reviews(server_url: str, reviews: list[UserReview]) -> None:
@@ -86,7 +94,12 @@ def scrape_app(app: SteamApp) -> GamePage | None:
 
 def run(server_url: str, batch_size: int) -> None:
     while True:
-        apps = fetch_batch(server_url, batch_size)
+        try:
+            apps = fetch_batch(server_url, batch_size)
+        except requests.RequestException as e:
+            print(f"Could not reach server: {e}, retrying in 5 minutes...")
+            time.sleep(300)
+            continue
         if not apps:
             print("No apps available, rechecking in 5 minutes...")
             time.sleep(300)

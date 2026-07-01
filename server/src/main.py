@@ -37,10 +37,10 @@ def weekly_cycle(args: argparse.Namespace) -> None:
 
     while True:
         cycle_start = time.time()
-        total = database.get_db().count_apps()
         initial_remaining = database.get_db().count_apps(unscraped_only=True)
 
         while True:
+            total = database.get_db().count_apps()
             remaining = database.get_db().count_apps(unscraped_only=True)
             if remaining == 0:
                 break
@@ -62,7 +62,7 @@ def weekly_cycle(args: argparse.Namespace) -> None:
 
         print("Starting weekly reset...")
         weekly_reset(db=args.output)
-        database.init(args.output)
+        database.init(args.output)  # new connection; in-flight requests finish on old connection naturally
         fill_app_entries(args)
         removed = database.get_db().delete_orphaned_reviews()
         if removed:
