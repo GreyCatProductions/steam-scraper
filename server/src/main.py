@@ -5,6 +5,8 @@ import threading
 import time
 import uvicorn
 from datetime import datetime, timedelta
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from server.src.appListBuilder import fetch_all_apps
 from shared.schema.data_objects import SteamApp
 import server.src.database as database
@@ -14,15 +16,16 @@ from scripts.weekly_reset import reset as weekly_reset
 log = logging.getLogger(__name__)
 
 
-def setup_logging(log_file: str | None = None) -> None:
-    handlers: list[logging.Handler] = [logging.StreamHandler()]
-    if log_file:
-        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+def setup_logging(log_file: str = "logs/server.log") -> None:
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+    file_handler = RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=handlers,
+        handlers=[logging.StreamHandler(), file_handler],
     )
 
 
@@ -96,7 +99,7 @@ def main():
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
     parser.add_argument("--reset", action="store_true", help="Back up and wipe the apps table before starting (use at the start of a new weekly cycle)")
-    parser.add_argument("--log-file", default=None, help="Optional path to write logs to a file in addition to stdout")
+    parser.add_argument("--log-file", default="logs/server.log", help="Log file path (rotates at 10MB, keeps 5 backups)")
     args = parser.parse_args()
 
     setup_logging(args.log_file)
