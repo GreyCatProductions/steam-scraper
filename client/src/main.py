@@ -77,8 +77,9 @@ def run(server_url: str, batch_size: int) -> None:
     while True:
         apps = fetch_batch(server_url, batch_size)
         if not apps:
-            print("No more apps to scrape.")
-            break
+            print("No apps available, rechecking in 5 minutes...")
+            time.sleep(300)
+            continue
 
         results: list[GamePage] = []
         for app in tqdm(apps, desc=f"Scraping batch of {len(apps)}"):
