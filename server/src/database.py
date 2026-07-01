@@ -87,6 +87,15 @@ class Database:
                 alter=True,  # type: ignore[arg-type]
             )
 
+    def mark_reviews_done(self, appid: int) -> None:
+        '''
+            A row has reviews_scraped = 1 only if the client reported to have worked trough all chunks.
+            0 means the last chunk was not reached, hence the reviews to be incomplete"
+        '''
+        
+        with self._lock:
+            self._db.execute("UPDATE apps SET reviews_scraped = 1 WHERE appid = ?", [appid])  # type: ignore
+
 
 _db: Optional[Database] = None
 

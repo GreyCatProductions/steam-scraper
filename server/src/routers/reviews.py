@@ -9,3 +9,9 @@ router = APIRouter(prefix="/reviews", tags=["reviews"])
 def submit_reviews(reviews: list[UserReview]):
     get_db().save_reviews(reviews)
     return {"saved": len(reviews)}
+
+
+@router.post("/done/{appid}")
+def mark_reviews_done(appid: int):
+    get_db().mark_reviews_done(appid)
+    return {"ok": True}

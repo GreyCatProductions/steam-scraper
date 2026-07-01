@@ -41,6 +41,11 @@ def submit_reviews(server_url: str, reviews: list[UserReview]) -> None:
     r.raise_for_status()
 
 
+def mark_reviews_done(server_url: str, appid: int) -> None:
+    r = requests.post(f"{server_url}/reviews/done/{appid}", timeout=10)
+    r.raise_for_status()
+
+
 def scrape_app(app: SteamApp) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
     r = None
@@ -99,20 +104,29 @@ def run(server_url: str, batch_size: int) -> None:
         for page in tqdm(valid_pages, desc="Fetching reviews"):
             chunk: list[UserReview] = []
             total = 0
+            failed = False
             for batch in iter_reviews(page.appid):
                 chunk.extend(batch)
                 total += len(batch)
                 if len(chunk) >= 100:
                     try:
                         submit_reviews(server_url, chunk)
+                        chunk = []
                     except requests.RequestException as e:
                         tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
-                    chunk = []
-            if chunk:
+                        failed = True
+                        break
+            if not failed and chunk:
                 try:
                     submit_reviews(server_url, chunk)
                 except requests.RequestException as e:
                     tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+                    failed = True
+            if not failed:
+                try:
+                    mark_reviews_done(server_url, page.appid)
+                except requests.RequestException as e:
+                    tqdm.write(f"  Failed to mark reviews done for {page.appid}: {e}")
             tqdm.write(f"  appid {page.appid}: {total} reviews")
 
 
