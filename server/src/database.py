@@ -46,6 +46,10 @@ class Database:
             return table.count
 
     def claim_apps(self, amount: int, timeout_seconds: int = 300) -> list[SteamApp]:
+        '''
+            Claims a random batch of unscraped apps, or apps whose claim has expired, 
+            and marks them as claimed for timeout_seconds
+        '''
         with self._lock:
             table = self._db["apps"]  # type: ignore[union-attr]
             if "claimed_at" not in {col.name for col in table.columns}:
@@ -61,6 +65,7 @@ class Database:
             rows = list(table.rows_where(
                 " AND ".join(conditions),
                 params,
+                order_by="RANDOM()",
                 limit=amount,
             ))
             ids = [r["appid"] for r in rows]
