@@ -78,10 +78,10 @@ def main():
     parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip the initial app list fetch")
     parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
-    parser.add_argument("--no-reset", action="store_true", help="Skip the initial backup and reset")
+    parser.add_argument("--reset", action="store_true", help="Back up and wipe the apps table before starting (use at the start of a new weekly cycle)")
     args = parser.parse_args()
 
-    if not args.no_reset:
+    if args.reset:
         weekly_reset(db=args.output)
 
     database.init(args.output)
