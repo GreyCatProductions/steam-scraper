@@ -8,7 +8,12 @@ _REVIEWS_URL = "https://store.steampowered.com/appreviews/{appid}"
 _PER_PAGE = 100
 
 
-def iter_reviews(appid: int, language: str = "all", max_reviews: int | None = None) -> Generator[list[UserReview], None, None]:
+def iter_reviews(
+    appid: int,
+    language: str = "all",
+    max_reviews: int | None = None,
+    stop_before: int = 0,
+) -> Generator[list[UserReview], None, None]:
     cursor = "*"
     total = 0
 
@@ -21,7 +26,7 @@ def iter_reviews(appid: int, language: str = "all", max_reviews: int | None = No
                         "json": 1,
                         "num_per_page": _PER_PAGE,
                         "language": language,
-                        "filter": "all",
+                        "filter": "recent",
                         "review_type": "all",
                         "purchase_type": "all",
                         "cursor": cursor,
@@ -45,6 +50,14 @@ def iter_reviews(appid: int, language: str = "all", max_reviews: int | None = No
         batch = [UserReview.from_dict(appid, rv) for rv in data.get("reviews", [])]
         if not batch:
             return
+
+        if stop_before:
+            new = [rv for rv in batch if rv.timestamp_created >= stop_before]
+            if len(new) < len(batch):
+                if new:
+                    yield new
+                return
+            batch = new
 
         yield batch
         total += len(batch)

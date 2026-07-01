@@ -5,6 +5,11 @@ from shared.schema.review import UserReview
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 
+@router.get("/latest-timestamp/{appid}")
+def get_latest_review_timestamp(appid: int):
+    return {"timestamp": get_db().get_latest_review_timestamp(appid)}
+
+
 @router.post("/results")
 def submit_reviews(reviews: list[UserReview]):
     get_db().save_reviews(reviews)

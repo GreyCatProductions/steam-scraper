@@ -87,6 +87,13 @@ class Database:
                 alter=True,  # type: ignore[arg-type]
             )
 
+    def get_latest_review_timestamp(self, appid: int) -> int:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT MAX(timestamp_created) FROM reviews WHERE appid = ?", [appid]
+            ).fetchone()  # type: ignore
+            return row[0] if row and row[0] is not None else 0
+
     def mark_reviews_done(self, appid: int) -> None:
         '''
             A row has reviews_scraped = 1 only if the client reported to have worked trough all chunks.

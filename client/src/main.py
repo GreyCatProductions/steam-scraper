@@ -46,6 +46,12 @@ def mark_reviews_done(server_url: str, appid: int) -> None:
     r.raise_for_status()
 
 
+def get_latest_review_timestamp(server_url: str, appid: int) -> int:
+    r = requests.get(f"{server_url}/reviews/latest-timestamp/{appid}", timeout=10)
+    r.raise_for_status()
+    return r.json()["timestamp"]
+
+
 def scrape_app(app: SteamApp) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
     r = None
@@ -100,12 +106,22 @@ def run(server_url: str, batch_size: int) -> None:
             except requests.RequestException as e:
                 tqdm.write(f"Failed to submit results: {e}")
 
+        _ONE_DAY = 86400
         valid_pages = [p for p in results if p.scraped_ok]
         for page in tqdm(valid_pages, desc="Fetching reviews"):
             chunk: list[UserReview] = []
             total = 0
             failed = False
-            for batch in iter_reviews(page.appid):
+            
+            #reviews are fetched by recent. Fetching already oldest saved state from db for offset
+            try:
+                latest_ts = get_latest_review_timestamp(server_url, page.appid)
+            except requests.RequestException:
+                latest_ts = 0
+            stop_before = max(0, latest_ts - _ONE_DAY)
+            
+            
+            for batch in iter_reviews(page.appid, stop_before=stop_before):
                 chunk.extend(batch)
                 total += len(batch)
                 if len(chunk) >= 100:
