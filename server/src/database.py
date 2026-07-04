@@ -16,9 +16,16 @@ class Database:
         self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
         self._db["reviews"].create({"recommendation_id": int}, pk="recommendation_id", if_not_exists=True)  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid ON reviews (appid)")  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid_ts ON reviews (appid, timestamp_created)")  # type: ignore
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
+        self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
+        self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
+        self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
+        self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
+        self._db.execute("PRAGMA mmap_size=268435456")  # type: ignore
 
     def add_apps(self, apps: list[SteamApp]) -> None:
         with self._lock:
