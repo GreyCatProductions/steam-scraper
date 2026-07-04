@@ -1,4 +1,5 @@
 import dataclasses
+import logging
 import sqlite3
 import threading
 import time
@@ -8,6 +9,8 @@ from shared.schema.data_objects import SteamApp
 from shared.schema.review import UserReview
 from shared.schema.steamPage import GamePage
 
+log = logging.getLogger(__name__)
+
 
 class Database:
     def __init__(self, path: str):
@@ -16,8 +19,10 @@ class Database:
         self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
         self._db["reviews"].create({"recommendation_id": int}, pk="recommendation_id", if_not_exists=True)  # type: ignore
+        log.info("Ensuring indexes exist (may take a while on large DBs)...")
         self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid ON reviews (appid)")  # type: ignore
         self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid_ts ON reviews (appid, timestamp_created)")  # type: ignore
+        log.info("Indexes ready")
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
@@ -26,6 +31,15 @@ class Database:
         self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
         self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
         self._db.execute("PRAGMA mmap_size=268435456")  # type: ignore
+
+        apps_count = self._db["apps"].count  # type: ignore
+        reviews_count = self._db["reviews"].count  # type: ignore
+        if apps_count > 0 or reviews_count > 0:
+            scraped_count = self._db["apps"].count_where("scraped_ok IS 1") if self._scraped_col_exists() else 0  # type: ignore
+            log.info(
+                "Opened existing database at %s: %d apps (%d scraped), %d reviews",
+                path, apps_count, scraped_count, reviews_count,
+            )
 
     def add_apps(self, apps: list[SteamApp]) -> None:
         with self._lock:
