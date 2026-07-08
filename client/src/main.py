@@ -62,7 +62,8 @@ def get_latest_review_timestamp(server_url: str, appid: int) -> int:
 
 def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
-    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
+    proxy_url = proxy if proxy and proxy.startswith("http") else f"http://{proxy}" if proxy else None
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
     r = None
     for attempt in range(ATTEMPTS_ON_FAIL):
         try:
