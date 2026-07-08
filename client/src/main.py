@@ -60,12 +60,14 @@ def get_latest_review_timestamp(server_url: str, appid: int) -> int:
     return r.json()["timestamp"]
 
 
-def scrape_app(app: SteamApp) -> GamePage | None:
+def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
+    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
     r = None
     for attempt in range(ATTEMPTS_ON_FAIL):
         try:
-            r = requests.get(url, timeout=10, cookies={"Steam_Language": "english"})
+            r = requests.get(url, timeout=10, cookies={"Steam_Language": "english"},
+                            proxies=proxies)
             r.raise_for_status()
             break
         except requests.HTTPError as e:
@@ -92,7 +94,7 @@ def scrape_app(app: SteamApp) -> GamePage | None:
         return None
 
 
-def run(server_url: str, batch_size: int) -> None:
+def run(server_url: str, proxy: str | None, batch_size: int) -> None:
     while True:
         try:
             apps = fetch_batch(server_url, batch_size)
@@ -107,7 +109,7 @@ def run(server_url: str, batch_size: int) -> None:
 
         results: list[GamePage] = []
         for app in tqdm(apps, desc=f"Scraping batch of {len(apps)}"):
-            page = scrape_app(app)
+            page = scrape_app(app, proxy)
             if page is not None:
                 results.append(page)
             time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
@@ -134,7 +136,7 @@ def run(server_url: str, batch_size: int) -> None:
             stop_before = max(0, latest_ts - _ONE_DAY)
             
             
-            for batch in iter_reviews(page.appid, stop_before=stop_before):
+            for batch in iter_reviews(page.appid, stop_before=stop_before, proxy=proxy):
                 chunk.extend(batch)
                 total += len(batch)
                 if len(chunk) >= 100:
@@ -162,10 +164,11 @@ def run(server_url: str, batch_size: int) -> None:
 def main():
     parser = argparse.ArgumentParser(description="Steam page scraper client")
     parser.add_argument("--server", required=True, help="Server base URL (e.g. http://1.2.3.4:8000)")
+    parser.add_argument("--proxy", type=str, help="Proxy to route the traffic trough (e.g. USER:PASSWORD@IP:HTTP_PORT)")
     parser.add_argument("--batch", type=int, default=50, help="Apps to claim per batch")
     args = parser.parse_args()
 
-    run(args.server, args.batch)
+    run(args.server, args.proxy, args.batch)
 
 
 if __name__ == "__main__":

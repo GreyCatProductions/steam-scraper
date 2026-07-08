@@ -13,9 +13,11 @@ def iter_reviews(
     language: str = "all",
     max_reviews: int | None = None,
     stop_before: int = 0,
+    proxy: str | None = None,
 ) -> Generator[list[UserReview], None, None]:
     cursor = "*"
     total = 0
+    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
 
     while True:
         for attempt in range(5):
@@ -31,6 +33,7 @@ def iter_reviews(
                         "purchase_type": "all",
                         "cursor": cursor,
                     },
+                    proxies=proxies,
                     timeout=15,
                 )
                 r.raise_for_status()
