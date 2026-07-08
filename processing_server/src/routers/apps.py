@@ -21,9 +21,8 @@ def get_next_batch(batch: int = 50):
 
 @router.post("/results")
 def submit_results(results: list[GamePage]):
-    client = get_client()
     for result in results:
         if not result.is_valid():
             result.scraped_ok = False
-        client.save_game_page_info(result)
+    get_client().save_results(results)
     return {"saved": len(results)}

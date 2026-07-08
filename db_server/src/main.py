@@ -1,6 +1,5 @@
 import argparse
 import logging
-import threading
 import uvicorn
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
