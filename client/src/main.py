@@ -96,6 +96,11 @@ def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
 
 
 def run(server_url: str, proxy: str | None, batch_size: int) -> None:
+    if proxy:
+        print(f"Using proxy: {proxy}")
+    else:
+        print(f"Using default IP. No proxy.")
+        
     while True:
         try:
             apps = fetch_batch(server_url, batch_size)
