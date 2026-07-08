@@ -54,6 +54,13 @@ class DbClient:
         r = requests.post(f"{self._base}/admin/reset", timeout=120)
         r.raise_for_status()
 
+    def ping(self) -> bool:
+        try:
+            r = requests.get(f"{self._base}/", timeout=5)
+            return r.ok
+        except requests.RequestException:
+            return False
+
 
 _client: Optional[DbClient] = None
 
@@ -61,6 +68,8 @@ _client: Optional[DbClient] = None
 def init(base_url: str) -> None:
     global _client
     _client = DbClient(base_url)
+    if not _client.ping():
+        raise RuntimeError(f"DB server not reachable at {base_url}")
 
 
 def get_client() -> DbClient:
