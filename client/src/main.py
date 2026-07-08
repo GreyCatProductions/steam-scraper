@@ -136,17 +136,22 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
             stop_before = max(0, latest_ts - _ONE_DAY)
             
             
-            for batch in iter_reviews(page.appid, stop_before=stop_before, proxy=proxy):
-                chunk.extend(batch)
-                total += len(batch)
-                if len(chunk) >= 100:
-                    try:
-                        submit_reviews(server_url, chunk)
-                        chunk = []
-                    except requests.RequestException as e:
-                        tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
-                        failed = True
-                        break
+            try:
+                for batch in iter_reviews(page.appid, stop_before=stop_before, proxy=proxy):
+                    chunk.extend(batch)
+                    total += len(batch)
+                    if len(chunk) >= 100:
+                        try:
+                            submit_reviews(server_url, chunk)
+                            chunk = []
+                        except requests.RequestException as e:
+                            tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+                            failed = True
+                            break
+            except requests.RequestException as e:
+                tqdm.write(f"  Reviews fetch failed for {page.appid}: {e}")
+                failed = True
+                
             if not failed and chunk:
                 try:
                     submit_reviews(server_url, chunk)

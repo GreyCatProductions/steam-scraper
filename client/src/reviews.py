@@ -44,8 +44,7 @@ def iter_reviews(
                 print(f"Reviews fetch failed for {appid} (attempt {attempt + 1}/5): {e}, retrying in {wait}s")
                 time.sleep(wait)
         else:
-            print(f"Giving up on reviews for {appid}")
-            return
+            raise requests.RequestException(f"All retries exhausted for appid {appid}")
 
         if data.get("success") != 1:
             return
