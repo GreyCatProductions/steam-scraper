@@ -144,12 +144,18 @@ class Database:
 
 
 _db: Optional[Database] = None
+_path: str = ""
 
 
 def init(path: str) -> None:
-    global _db
+    global _db, _path
+    _path = path
     _db = Database(path)
 
 
 def get_db() -> Database:
     return _db  # type: ignore[return-value]
+
+
+def get_path() -> str:
+    return _path

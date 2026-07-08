@@ -7,11 +7,10 @@ import uvicorn
 from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from server.src.appListBuilder import fetch_all_apps
+from processing_server.src.appListBuilder import fetch_all_apps
 from shared.schema.data_objects import SteamApp
-import server.src.database as database
-from server.src.api import app
-from scripts.weekly_reset import reset as weekly_reset
+import processing_server.src.db_client as db_client
+from processing_server.src.api import app
 
 log = logging.getLogger(__name__)
 
@@ -38,9 +37,9 @@ def fill_app_entries(args: argparse.Namespace):
     total = 0
     for page in pages:
         apps = [SteamApp.from_dict(a) for a in page]
-        database.get_db().add_apps(apps)
+        db_client.get_client().add_apps(apps)
         total += len(apps)
-    log.info("%d apps loaded into %s", total, args.output)
+    log.info("%d apps loaded", total)
 
 
 def seconds_until_next_monday() -> float:
@@ -55,11 +54,11 @@ def weekly_cycle(args: argparse.Namespace) -> None:
 
     while True:
         cycle_start = time.time()
-        initial_remaining = database.get_db().count_apps(unscraped_only=True)
+        initial_remaining = db_client.get_client().count_apps(unscraped_only=True)
 
         while True:
-            total = database.get_db().count_apps()
-            remaining = database.get_db().count_apps(unscraped_only=True)
+            total = db_client.get_client().count_apps()
+            remaining = db_client.get_client().count_apps(unscraped_only=True)
             if remaining == 0:
                 break
             elapsed = time.time() - cycle_start
@@ -81,10 +80,9 @@ def weekly_cycle(args: argparse.Namespace) -> None:
         time.sleep(wait)
 
         log.info("Starting weekly reset...")
-        weekly_reset(db=args.output)
-        database.init(args.output)
+        db_client.get_client().reset()
         fill_app_entries(args)
-        removed = database.get_db().delete_orphaned_reviews()
+        removed = db_client.get_client().delete_orphaned_reviews()
         if removed:
             log.info("Removed %d reviews for apps no longer on Steam", removed)
         log.info("Weekly cycle started.")
@@ -95,19 +93,19 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("-k", "--key", help="Steam Web API key (fetches live data)")
     source.add_argument("-al", "--app-list", help="Path to existing app list JSON file. If file is given only apps from the list are scraped. No new ones are searched for using API!")
+    parser.add_argument("--db-server", required=True, help="DB server base URL (e.g. http://1.2.3.4:8001)")
     parser.add_argument("-sapf", "--skip-app-list-fetch", action="store_true", help="Skip the initial app list fetch")
-    parser.add_argument("-o", "--output", default="steam.db", help="SQLite database file path")
     parser.add_argument("-p", "--port", type=int, default=8000, help="Port to listen on")
-    parser.add_argument("--reset", action="store_true", help="Back up and wipe the apps table before starting (use at the start of a new weekly cycle)")
-    parser.add_argument("--log-file", default="logs/server.log", help="Log file path (rotates at 10MB, keeps 5 backups)")
+    parser.add_argument("--reset", action="store_true", help="Back up and wipe the apps table before starting")
+    parser.add_argument("--log-file", default="logs/processing_server.log", help="Log file path (rotates at 10MB, keeps 5 backups)")
     args = parser.parse_args()
 
     setup_logging(args.log_file)
 
-    if args.reset:
-        weekly_reset(db=args.output)
+    db_client.init(args.db_server)
 
-    database.init(args.output)
+    if args.reset:
+        db_client.get_client().reset()
 
     if not args.skip_app_list_fetch:
         fill_app_entries(args)

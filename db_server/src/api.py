@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from server.src.routers import apps, reviews
+from db_server.src.routers import apps, reviews, admin
 
 app = FastAPI()
 
@@ -11,3 +11,4 @@ def root():
 
 app.include_router(apps.router)
 app.include_router(reviews.router)
+app.include_router(admin.router)
