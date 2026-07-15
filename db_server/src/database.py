@@ -26,6 +26,9 @@ class Database:
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
+        review_cols = {col.name for col in self._db["reviews"].columns}  # type: ignore
+        if "last_seen" not in review_cols:
+            self._db["reviews"].add_column("last_seen", int)  # type: ignore
         self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
         self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
         self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
@@ -109,9 +112,15 @@ class Database:
             )
 
     def save_reviews(self, reviews: list[UserReview]) -> None:
+        '''
+            Reviews are never deleted. Re-scraping an already-known review (same
+            recommendation_id) just overwrites its fields and stamps last_seen.
+        '''
+        now = int(time.time())
         with self._lock:
+            rows = [dict(dataclasses.asdict(r), last_seen=now) for r in reviews]
             self._db["reviews"].upsert_all(  # type: ignore[union-attr]
-                [dataclasses.asdict(r) for r in reviews],
+                rows,
                 pk="recommendation_id",  # type: ignore[arg-type]
                 alter=True,  # type: ignore[arg-type]
             )

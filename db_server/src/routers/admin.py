@@ -1,8 +1,7 @@
-import sqlite3
 from pathlib import Path
 from fastapi import APIRouter
 from db_server.src.database import get_path
-from scripts.weekly_reset import reset as weekly_reset, next_backup_path
+from scripts.weekly_reset import reset as weekly_reset, backup_apps_table, backup_reviews_table
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -15,15 +14,11 @@ def reset():
 
 @router.post("/backup")
 def backup():
-    db_path = Path(get_path())
-    bdir = Path("backups")
-    bdir.mkdir(exist_ok=True)
-    dest = next_backup_path(bdir, db_path.stem)
-    src = sqlite3.connect(db_path)
-    dst = sqlite3.connect(dest)
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+    dest = backup_apps_table(Path(get_path()), Path("backups"))
     return {"backup": str(dest)}
+
+
+@router.post("/export-reviews")
+def export_reviews():
+    dest = backup_reviews_table(Path(get_path()), Path("backups"))
+    return {"export": str(dest)}

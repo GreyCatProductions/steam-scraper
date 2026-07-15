@@ -14,27 +14,55 @@ def next_backup_path(backup_dir: Path, stem: str) -> Path:
         counter += 1
 
 
+def backup_apps_table(db_path: Path, backup_dir: Path) -> Path:
+    '''
+        Snapshots the apps table
+    '''
+    backup_dir.mkdir(exist_ok=True)
+    dest = next_backup_path(backup_dir, db_path.stem)
+    dst = sqlite3.connect(dest)
+    try:
+        dst.execute("ATTACH DATABASE ? AS src", (str(db_path),))
+        dst.execute("CREATE TABLE apps AS SELECT * FROM src.apps")
+        dst.execute("DETACH DATABASE src")
+        dst.commit()
+    finally:
+        dst.close()
+    return dest
+
+
+def backup_reviews_table(db_path: Path, backup_dir: Path) -> Path:
+    '''
+        On-demand snapshot of the reviews table for offline analysis. Not part of the
+        weekly reset - the live reviews table is never cleared or touched by it.
+    '''
+    backup_dir.mkdir(exist_ok=True)
+    dest = next_backup_path(backup_dir, f"{db_path.stem}_reviews")
+    dst = sqlite3.connect(dest)
+    try:
+        dst.execute("ATTACH DATABASE ? AS src", (str(db_path),))
+        dst.execute("CREATE TABLE reviews AS SELECT * FROM src.reviews")
+        dst.execute("DETACH DATABASE src")
+        dst.commit()
+    finally:
+        dst.close()
+    return dest
+
+
 def reset(db: str = "steam.db", backup_dir: str = "backups") -> None:
     db_path = Path(db)
     if not db_path.exists():
         print(f"Database not found: {db_path}")
         return
 
-    bdir = Path(backup_dir)
-    bdir.mkdir(exist_ok=True)
+    dest = backup_apps_table(db_path, Path(backup_dir))
+    print(f"Backed up apps table to {dest}")
 
-    dest = next_backup_path(bdir, db_path.stem)
-    src = sqlite3.connect(db_path)
-    dst = sqlite3.connect(dest)
+    conn = sqlite3.connect(db_path)
     try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
-    print(f"Backed up to {dest}")
-
-    with sqlite3.connect(db_path) as conn:
         conn.execute("DELETE FROM apps")
+        conn.commit()
+    finally:
         conn.close()
     print(f"Cleared apps table in {db_path}")
 
