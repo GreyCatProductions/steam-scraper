@@ -35,6 +35,7 @@ class Database:
         self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
         self._db.execute("PRAGMA mmap_size=268435456")  # type: ignore
 
+        log.info("Loading db info")
         apps_count = self._db["apps"].count  # type: ignore
         reviews_count = self._db["reviews"].count  # type: ignore
         if apps_count > 0 or reviews_count > 0:
