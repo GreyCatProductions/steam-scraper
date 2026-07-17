@@ -18,7 +18,11 @@ class Database:
         self._db = sqlite_utils.Database(conn)
         self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
-        self._db["reviews"].create({"recommendation_id": int}, pk="recommendation_id", if_not_exists=True)  # type: ignore
+        self._db["reviews"].create(  # type: ignore
+            {"recommendation_id": int, "appid": int, "timestamp_created": int},
+            pk="recommendation_id",  # type: ignore
+            if_not_exists=True,
+        )
         log.info("Ensuring indexes exist (may take a while on large DBs)...")
         self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid ON reviews (appid)")  # type: ignore
         self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid_ts ON reviews (appid, timestamp_created)")  # type: ignore
@@ -114,8 +118,9 @@ class Database:
 
     def save_reviews(self, reviews: list[UserReview]) -> None:
         '''
-            Reviews are never deleted. Re-scraping an already-known review (same
-            recommendation_id) just overwrites its fields and stamps last_seen.
+            Re-scraping an already-known review (same recommendation_id) just overwrites
+            its fields and stamps last_seen, rather than creating a duplicate row. The
+            whole table is wiped together with apps on the weekly reset.
         '''
         now = int(time.time())
         with self._lock:
@@ -135,13 +140,6 @@ class Database:
                 "SELECT MAX(timestamp_created) FROM reviews WHERE appid = ?", [appid]
             ).fetchone()  # type: ignore
             return row[0] if row and row[0] is not None else 0
-
-    def delete_orphaned_reviews(self) -> int:
-        with self._lock:
-            result = self._db.execute(
-                "DELETE FROM reviews WHERE appid NOT IN (SELECT appid FROM apps)"
-            )  # type: ignore
-            return result.rowcount
 
     def mark_reviews_done(self, appid: int) -> None:
         '''

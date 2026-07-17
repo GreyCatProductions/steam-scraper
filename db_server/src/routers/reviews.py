@@ -20,9 +20,3 @@ def get_latest_timestamp(appid: int):
 def mark_done(appid: int):
     get_db().mark_reviews_done(appid)
     return {"ok": True}
-
-
-@router.delete("/orphaned")
-def delete_orphaned():
-    removed = get_db().delete_orphaned_reviews()
-    return {"removed": removed}

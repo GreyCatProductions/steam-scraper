@@ -82,9 +82,6 @@ def weekly_cycle(args: argparse.Namespace) -> None:
         log.info("Starting weekly reset...")
         db_client.get_client().reset()
         fill_app_entries(args)
-        removed = db_client.get_client().delete_orphaned_reviews()
-        if removed:
-            log.info("Removed %d reviews for apps no longer on Steam", removed)
         log.info("Weekly cycle started.")
 
 

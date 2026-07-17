@@ -20,7 +20,7 @@ class DbClient:
         return [SteamApp.from_dict(a) for a in r.json()]
 
     def count_apps(self, unscraped_only: bool = False) -> int:
-        r = requests.get(f"{self._base}/apps/count", params={"unscraped_only": unscraped_only}, timeout=10)
+        r = requests.get(f"{self._base}/apps/count", params={"unscraped_only": unscraped_only}, timeout=600)
         r.raise_for_status()
         return r.json()["count"]
 
@@ -44,11 +44,6 @@ class DbClient:
     def mark_reviews_done(self, appid: int) -> None:
         r = requests.post(f"{self._base}/reviews/done/{appid}", timeout=10)
         r.raise_for_status()
-
-    def delete_orphaned_reviews(self) -> int:
-        r = requests.delete(f"{self._base}/reviews/orphaned", timeout=30)
-        r.raise_for_status()
-        return r.json()["removed"]
 
     def reset(self) -> None:
         r = requests.post(f"{self._base}/admin/reset", timeout=120)
