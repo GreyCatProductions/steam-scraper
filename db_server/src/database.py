@@ -30,6 +30,9 @@ class Database:
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
+        if "scraped_ok" not in cols:
+            self._db["apps"].add_column("scraped_ok", int)  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_apps_scraped_ok ON apps (scraped_ok)")  # type: ignore
         review_cols = {col.name for col in self._db["reviews"].columns}  # type: ignore
         if "last_seen" not in review_cols:
             self._db["reviews"].add_column("last_seen", int)  # type: ignore
