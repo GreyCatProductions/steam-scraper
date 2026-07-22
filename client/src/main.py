@@ -23,35 +23,38 @@ def fetch_batch(server_url: str, batch: int) -> list[SteamApp]:
     return [SteamApp.from_dict(a) for a in r.json()]
 
 
-def submit_results(server_url: str, results: list[GamePage]) -> None:
-    for attempt in range(5):
+def _post_with_retry(url: str, json_payload, timeout: int, attempts: int = 5) -> bool:
+    for attempt in range(attempts):
         try:
-            r = requests.post(
-                f"{server_url}/apps/results",
-                json=[dataclasses.asdict(p) for p in results],
-                timeout=30,
-            )
+            r = requests.post(url, json=json_payload, timeout=timeout)
             r.raise_for_status()
-            return
+            return True
         except requests.RequestException as e:
             wait = 10 * (2 ** attempt)
-            tqdm.write(f"Submit failed (attempt {attempt + 1}/5): {e}, retrying in {wait}s")
+            tqdm.write(f"Upload to {url} failed (attempt {attempt + 1}/{attempts}): {e}, retrying in {wait}s")
             time.sleep(wait)
-    tqdm.write("Giving up on submitting results")
+    tqdm.write(f"Giving up on uploading to {url}")
+    return False
 
 
-def submit_reviews(server_url: str, reviews: list[UserReview]) -> None:
-    r = requests.post(
-        f"{server_url}/reviews/results",
-        json=[dataclasses.asdict(rv) for rv in reviews],
+def submit_results(server_url: str, results: list[GamePage]) -> bool:
+    return _post_with_retry(
+        f"{server_url}/apps/results",
+        [dataclasses.asdict(p) for p in results],
         timeout=30,
     )
-    r.raise_for_status()
 
 
-def mark_reviews_done(server_url: str, appid: int) -> None:
-    r = requests.post(f"{server_url}/reviews/done/{appid}", timeout=10)
-    r.raise_for_status()
+def submit_reviews(server_url: str, reviews: list[UserReview]) -> bool:
+    return _post_with_retry(
+        f"{server_url}/reviews/results",
+        [dataclasses.asdict(rv) for rv in reviews],
+        timeout=30,
+    )
+
+
+def mark_reviews_done(server_url: str, appid: int) -> bool:
+    return _post_with_retry(f"{server_url}/reviews/done/{appid}", None, timeout=10)
 
 
 def get_latest_review_timestamp(server_url: str, appid: int) -> int:
@@ -121,11 +124,10 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
             time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
 
         if results:
-            try:
-                submit_results(server_url, results)
+            if submit_results(server_url, results):
                 tqdm.write(f"Submitted {len(results)}/{len(apps)} results")
-            except requests.RequestException as e:
-                tqdm.write(f"Failed to submit results: {e}")
+            else:
+                tqdm.write("Failed to submit results after retries")
 
         _ONE_DAY = 86400
         valid_pages = [p for p in results if p.scraped_ok]
@@ -147,28 +149,23 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
                     chunk.extend(batch)
                     total += len(batch)
                     if len(chunk) >= 100:
-                        try:
-                            submit_reviews(server_url, chunk)
+                        if submit_reviews(server_url, chunk):
                             chunk = []
-                        except requests.RequestException as e:
-                            tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+                        else:
+                            tqdm.write(f"  Giving up on reviews for {page.appid} after failed upload")
                             failed = True
                             break
             except requests.RequestException as e:
                 tqdm.write(f"  Reviews fetch failed for {page.appid}: {e}")
                 failed = True
-                
+
             if not failed and chunk:
-                try:
-                    submit_reviews(server_url, chunk)
-                except requests.RequestException as e:
-                    tqdm.write(f"  Failed to submit reviews for {page.appid}: {e}")
+                if not submit_reviews(server_url, chunk):
+                    tqdm.write(f"  Giving up on reviews for {page.appid} after failed upload")
                     failed = True
             if not failed:
-                try:
-                    mark_reviews_done(server_url, page.appid)
-                except requests.RequestException as e:
-                    tqdm.write(f"  Failed to mark reviews done for {page.appid}: {e}")
+                if not mark_reviews_done(server_url, page.appid):
+                    tqdm.write(f"  Failed to mark reviews done for {page.appid} after retries")
             tqdm.write(f"  appid {page.appid}: {total} reviews")
 
 
