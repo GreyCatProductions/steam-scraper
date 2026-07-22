@@ -121,9 +121,9 @@ class Database:
 
     def save_reviews(self, reviews: list[UserReview]) -> None:
         '''
+            Reviews are reused across weeks, never wiped by the weekly reset.
             Re-scraping an already-known review (same recommendation_id) just overwrites
-            its fields and stamps last_seen, rather than creating a duplicate row. The
-            whole table is wiped together with apps on the weekly reset.
+            its fields and stamps last_seen, rather than creating a duplicate row.
         '''
         now = int(time.time())
         with self._lock:

@@ -51,9 +51,8 @@ def backup_reviews_table(db_path: Path, backup_dir: Path) -> Path:
 
 def reset(db: str = "steam.db", backup_dir: str = "backups") -> None:
     '''
-        Weekly reset: apps and reviews both start from scratch. Only apps gets backed
-        up first (reviews are never backed up automatically - use /admin/export-reviews
-        beforehand if you need a copy).
+        Weekly reset: only apps starts from scratch and gets backed up first. Reviews
+        are reused across weeks - never backed up and never wiped here.
     '''
     db_path = Path(db)
     if not db_path.exists():
@@ -66,11 +65,10 @@ def reset(db: str = "steam.db", backup_dir: str = "backups") -> None:
     conn = sqlite3.connect(db_path)
     try:
         conn.execute("DELETE FROM apps")
-        conn.execute("DELETE FROM reviews")
         conn.commit()
     finally:
         conn.close()
-    print(f"Cleared apps and reviews tables in {db_path}")
+    print(f"Cleared apps table in {db_path}")
 
 
 def main():
