@@ -53,26 +53,22 @@ def weekly_cycle(args: argparse.Namespace) -> None:
     CHECK_INTERVAL = 300
 
     while True:
-        cycle_start = time.time()
         total = db_client.get_client().count_apps()
-        initial_remaining = db_client.get_client().count_apps(unscraped_only=True)
+        remaining = db_client.get_client().count_apps(unscraped_only=True)
 
-        while True:
+        while remaining > 0:
+            previous_remaining = remaining
+            time.sleep(CHECK_INTERVAL)
             remaining = db_client.get_client().count_apps(unscraped_only=True)
-            if remaining == 0:
-                break
-            elapsed = time.time() - cycle_start
-            scraped = initial_remaining - remaining
+            scraped = previous_remaining - remaining
             if scraped > 0:
-                rate = scraped / elapsed
-                eta_seconds = remaining / rate
-                eta = timedelta(seconds=int(eta_seconds))
+                rate = scraped / CHECK_INTERVAL
+                eta = timedelta(seconds=int(remaining / rate))
                 log.info("Progress: %d/%d scraped | %d remaining | rate: %.0f apps/hr | ETA: %s",
                          total - remaining, total, remaining, rate * 3600, eta)
             else:
-                log.info("Progress: %d/%d scraped | %d remaining | ETA: calculating...", 
+                log.info("Progress: %d/%d scraped | %d remaining | ETA: calculating...",
                          total - remaining, total, remaining)
-            time.sleep(CHECK_INTERVAL)
 
         wait = seconds_until_next_monday()
         wake = datetime.now() + timedelta(seconds=wait)
