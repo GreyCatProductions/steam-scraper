@@ -28,3 +28,9 @@ def save_results(results: list[GamePage]):
     for result in results:
         get_db().save_game_page_info(result)
     return {"saved": len(results)}
+
+
+@router.post("/fail/{appid}")
+def report_failure(appid: int):
+    get_db().report_failure(appid)
+    return {"ok": True}

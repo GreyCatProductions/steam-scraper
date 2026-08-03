@@ -11,6 +11,8 @@ from shared.schema.steamPage import GamePage
 
 log = logging.getLogger(__name__)
 
+FAILURE_THRESHOLD = 10
+
 
 class Database:
     def __init__(self, path: str):
@@ -32,6 +34,8 @@ class Database:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
         if "scraped_ok" not in cols:
             self._db["apps"].add_column("scraped_ok", int)  # type: ignore
+        if "fail_count" not in cols:
+            self._db["apps"].add_column("fail_count", int)  # type: ignore
         self._db.execute("CREATE INDEX IF NOT EXISTS idx_apps_scraped_ok ON apps (scraped_ok)")  # type: ignore
         review_cols = {col.name for col in self._db["reviews"].columns}  # type: ignore
         if "last_seen" not in review_cols:
@@ -77,7 +81,7 @@ class Database:
         with self._lock:
             table = self._db["apps"]  # type: ignore[union-attr]
             if unscraped_only and self._scraped_col_exists():
-                return table.count_where("scraped_ok IS NOT 1")
+                return table.count_where("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
             return table.count
 
     def claim_apps(self, amount: int, timeout_seconds: int = 300) -> list[SteamApp]:
@@ -95,7 +99,7 @@ class Database:
             conditions = []
             params: list = [cutoff]
             if "scraped_ok" in cols:
-                conditions.append("scraped_ok IS NOT 1")
+                conditions.append("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
             conditions.append("(claimed_at IS NULL OR claimed_at < ?)")
             rows = list(table.rows_where(
                 " AND ".join(conditions),
@@ -110,6 +114,26 @@ class Database:
                     [now, *ids],
                 )
             return [SteamApp.from_dict(r) for r in rows]
+
+    def report_failure(self, appid: int) -> None:
+        '''
+            Records a client-side processing failure for an app. Once fail_count reaches
+            FAILURE_THRESHOLD, the app is marked scraped_ok=-1 so it's no longer claimable
+            or counted as remaining work.
+        '''
+        with self._lock:
+            self._db.execute(  # type: ignore[union-attr]
+                """
+                UPDATE apps
+                SET fail_count = COALESCE(fail_count, 0) + 1,
+                    scraped_ok = CASE
+                        WHEN COALESCE(fail_count, 0) + 1 >= ? THEN -1
+                        ELSE scraped_ok
+                    END
+                WHERE appid = ?
+                """,
+                [FAILURE_THRESHOLD, appid],
+            )
 
     def save_game_page_info(self, page: GamePage) -> None:
         with self._lock:

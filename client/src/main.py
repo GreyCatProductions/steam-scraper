@@ -45,6 +45,10 @@ def submit_results(server_url: str, results: list[GamePage]) -> bool:
     )
 
 
+def report_failure(server_url: str, appid: int) -> bool:
+    return _post_with_retry(f"{server_url}/apps/fail/{appid}", None, timeout=10)
+
+
 def submit_reviews(server_url: str, reviews: list[UserReview]) -> bool:
     return _post_with_retry(
         f"{server_url}/reviews/results",
@@ -121,6 +125,9 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
             page = scrape_app(app, proxy)
             if page is not None:
                 results.append(page)
+            else:
+                if not report_failure(server_url, app.appid):
+                    tqdm.write(f"  Failed to report failure for {app.appid} after retries")
             time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
 
         if results:

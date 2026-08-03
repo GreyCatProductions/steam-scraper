@@ -26,3 +26,9 @@ def submit_results(results: list[GamePage]):
             result.scraped_ok = False
     get_client().save_results(results)
     return {"saved": len(results)}
+
+
+@router.post("/fail/{appid}")
+def report_failure(appid: int):
+    get_client().report_failure(appid)
+    return {"ok": True}

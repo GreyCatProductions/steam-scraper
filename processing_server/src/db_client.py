@@ -32,6 +32,10 @@ class DbClient:
         r = requests.post(f"{self._base}/apps/results", json=[dataclasses.asdict(p) for p in pages], timeout=30)
         r.raise_for_status()
 
+    def report_failure(self, appid: int) -> None:
+        r = requests.post(f"{self._base}/apps/fail/{appid}", timeout=10)
+        r.raise_for_status()
+
     def save_reviews(self, reviews: list[UserReview]) -> None:
         r = requests.post(f"{self._base}/reviews", json=[dataclasses.asdict(rv) for rv in reviews], timeout=30)
         r.raise_for_status()
