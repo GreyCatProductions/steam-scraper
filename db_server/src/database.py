@@ -1,5 +1,6 @@
 import dataclasses
 import logging
+import random
 import sqlite3
 import threading
 import time
@@ -17,6 +18,11 @@ FAILURE_THRESHOLD = 10
 class Database:
     def __init__(self, path: str):
         conn = sqlite3.connect(path, check_same_thread=False)
+        self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
+        self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
+        self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
+        self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
+        self._db.execute("PRAGMA mmap_size=1024000000")  # type: ignore
         self._db = sqlite_utils.Database(conn)
         self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
@@ -26,9 +32,7 @@ class Database:
             if_not_exists=True,
         )
         log.info("Ensuring indexes exist (may take a while on large DBs)...")
-        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid ON reviews (appid)")  # type: ignore
-        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid_ts ON reviews (appid, timestamp_created)")  # type: ignore
-        log.info("Indexes ready")
+        
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
@@ -36,15 +40,15 @@ class Database:
             self._db["apps"].add_column("scraped_ok", int)  # type: ignore
         if "fail_count" not in cols:
             self._db["apps"].add_column("fail_count", int)  # type: ignore
-        self._db.execute("CREATE INDEX IF NOT EXISTS idx_apps_scraped_ok ON apps (scraped_ok)")  # type: ignore
         review_cols = {col.name for col in self._db["reviews"].columns}  # type: ignore
         if "last_seen" not in review_cols:
             self._db["reviews"].add_column("last_seen", int)  # type: ignore
-        self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
-        self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
-        self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
-        self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
-        self._db.execute("PRAGMA mmap_size=268435456")  # type: ignore
+
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid ON reviews (appid)")  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_appid_ts ON reviews (appid, timestamp_created)")  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_apps_scraped_ok ON apps (scraped_ok)")  # type: ignore
+        self._db.execute("CREATE INDEX IF NOT EXISTS idx_apps_claim ON apps (scraped_ok, claimed_at, appid)")  # type: ignore
+        log.info("Indexes ready")
 
         log.info("Loading db info")
         apps_count = self._db["apps"].count  # type: ignore
@@ -86,8 +90,11 @@ class Database:
 
     def claim_apps(self, amount: int, timeout_seconds: int = 300) -> list[SteamApp]:
         '''
-            Claims a random batch of unscraped apps, or apps whose claim has expired, 
-            and marks them as claimed for timeout_seconds
+            Claims a batch of unscraped apps, or apps whose claim has expired,
+            and marks them as claimed for timeout_seconds.
+            Selection starts from a randomly chosen appid and wraps around the
+            table, which spreads claims out without paying for an ORDER BY
+            RANDOM() sort of the whole filtered result set on every call.
         '''
         with self._lock:
             table = self._db["apps"]  # type: ignore[union-attr]
@@ -97,16 +104,29 @@ class Database:
             cutoff = now - timeout_seconds
             cols = {col.name for col in table.columns}
             conditions = []
-            params: list = [cutoff]
             if "scraped_ok" in cols:
                 conditions.append("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
             conditions.append("(claimed_at IS NULL OR claimed_at < ?)")
-            rows = list(table.rows_where(
-                " AND ".join(conditions),
-                params,
-                order_by="RANDOM()",
-                limit=amount,
-            ))
+            where = " AND ".join(conditions)
+
+            bounds = self._db.execute("SELECT MIN(appid), MAX(appid) FROM apps").fetchone()  # type: ignore
+            rows: list[dict] = []
+            if bounds and bounds[0] is not None:
+                start = random.randint(bounds[0], bounds[1])
+                rows = list(table.rows_where(
+                    f"appid >= ? AND {where}",
+                    [start, cutoff],
+                    order_by="appid",
+                    limit=amount,
+                ))
+                if len(rows) < amount:
+                    rows += list(table.rows_where(
+                        f"appid < ? AND {where}",
+                        [start, cutoff],
+                        order_by="appid",
+                        limit=amount - len(rows),
+                    ))
+
             ids = [r["appid"] for r in rows]
             if ids:
                 self._db.execute(  # type: ignore[union-attr]
