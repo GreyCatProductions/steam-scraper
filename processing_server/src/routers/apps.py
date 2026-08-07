@@ -21,10 +21,17 @@ def get_next_batch(batch: int = 50):
 
 @router.post("/results")
 def submit_results(results: list[GamePage]):
+    client = get_client()
     for result in results:
         if not result.is_valid():
             result.scraped_ok = False
-    get_client().save_results(results)
+    client.save_results(results)
+    for result in results:
+        if not result.scraped_ok:
+            # An invalid scrape never retries on its own otherwise: it would sit
+            # at scraped_ok=0 forever, still claimable, without ever accruing
+            # towards FAILURE_THRESHOLD like a client-side processing failure does.
+            client.report_failure(result.appid)
     return {"saved": len(results)}
 
 
