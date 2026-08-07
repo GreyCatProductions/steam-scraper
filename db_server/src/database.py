@@ -18,13 +18,13 @@ FAILURE_THRESHOLD = 10
 class Database:
     def __init__(self, path: str):
         conn = sqlite3.connect(path, check_same_thread=False)
+        self._db = sqlite_utils.Database(conn)
+        self._lock = threading.Lock()
         self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
         self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
         self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
         self._db.execute("PRAGMA temp_store=MEMORY")  # type: ignore
         self._db.execute("PRAGMA mmap_size=1024000000")  # type: ignore
-        self._db = sqlite_utils.Database(conn)
-        self._lock = threading.Lock()
         self._db["apps"].create({"appid": int}, pk="appid", if_not_exists=True)  # type: ignore
         self._db["reviews"].create(  # type: ignore
             {"recommendation_id": int, "appid": int, "timestamp_created": int},
@@ -32,7 +32,7 @@ class Database:
             if_not_exists=True,
         )
         log.info("Ensuring indexes exist (may take a while on large DBs)...")
-        
+
         cols = {col.name for col in self._db["apps"].columns}  # type: ignore
         if "reviews_scraped" not in cols:
             self._db["apps"].add_column("reviews_scraped", int)  # type: ignore
@@ -40,6 +40,8 @@ class Database:
             self._db["apps"].add_column("scraped_ok", int)  # type: ignore
         if "fail_count" not in cols:
             self._db["apps"].add_column("fail_count", int)  # type: ignore
+        if "claimed_at" not in cols:
+            self._db["apps"].add_column("claimed_at", int)  # type: ignore
         review_cols = {col.name for col in self._db["reviews"].columns}  # type: ignore
         if "last_seen" not in review_cols:
             self._db["reviews"].add_column("last_seen", int)  # type: ignore
@@ -98,16 +100,9 @@ class Database:
         '''
         with self._lock:
             table = self._db["apps"]  # type: ignore[union-attr]
-            if "claimed_at" not in {col.name for col in table.columns}:
-                table.add_column("claimed_at", int) # type: ignore
             now = int(time.time())
             cutoff = now - timeout_seconds
-            cols = {col.name for col in table.columns}
-            conditions = []
-            if "scraped_ok" in cols:
-                conditions.append("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
-            conditions.append("(claimed_at IS NULL OR claimed_at < ?)")
-            where = " AND ".join(conditions)
+            where = "scraped_ok IS NOT 1 AND scraped_ok IS NOT -1 AND (claimed_at IS NULL OR claimed_at < ?)"
 
             bounds = self._db.execute("SELECT MIN(appid), MAX(appid) FROM apps").fetchone()  # type: ignore
             rows: list[dict] = []
