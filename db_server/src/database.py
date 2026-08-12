@@ -4,6 +4,8 @@ import random
 import sqlite3
 import threading
 import time
+from datetime import date
+from pathlib import Path
 from typing import Generator, Optional
 import sqlite_utils
 from shared.schema.data_objects import SteamApp
@@ -15,8 +17,19 @@ log = logging.getLogger(__name__)
 FAILURE_THRESHOLD = 10
 
 
+def next_backup_path(backup_dir: Path, stem: str) -> Path:
+    today = date.today().isoformat()
+    counter = 1
+    while True:
+        path = backup_dir / f"{stem}_{today}_{counter:03d}.db"
+        if not path.exists():
+            return path
+        counter += 1
+
+
 class Database:
     def __init__(self, path: str):
+        self._path = path
         conn = sqlite3.connect(path, check_same_thread=False)
         self._db = sqlite_utils.Database(conn)
         self._lock = threading.Lock()
@@ -188,9 +201,46 @@ class Database:
             A row has reviews_scraped = 1 only if the client reported to have worked trough all chunks.
             0 means the last chunk was not reached, hence the reviews to be incomplete"
         '''
-        
+
         with self._lock:
             self._db.execute("UPDATE apps SET reviews_scraped = 1 WHERE appid = ?", [appid])  # type: ignore
+
+    def _snapshot_table_locked(self, table: str, stem: str, backup_dir: str) -> Path:
+        '''
+            Copies `table` into a new attached db file over the server's own connection,
+            so it competes for the write lock with nothing but itself.
+        '''
+        bdir = Path(backup_dir)
+        bdir.mkdir(exist_ok=True)
+        dest = next_backup_path(bdir, stem)
+        conn = self._db.conn  # type: ignore
+        conn.execute("ATTACH DATABASE ? AS backup_dst", (str(dest),))  # type: ignore
+        try:
+            conn.execute(f"CREATE TABLE backup_dst.{table} AS SELECT * FROM {table}")  # type: ignore
+            conn.commit()  # type: ignore
+        finally:
+            conn.execute("DETACH DATABASE backup_dst")  # type: ignore
+        return dest
+
+    def backup_apps_table(self, backup_dir: str = "backups") -> Path:
+        with self._lock:
+            return self._snapshot_table_locked("apps", Path(self._path).stem, backup_dir)
+
+    def backup_reviews_table(self, backup_dir: str = "backups") -> Path:
+        with self._lock:
+            return self._snapshot_table_locked("reviews", f"{Path(self._path).stem}_reviews", backup_dir)
+
+    def reset_apps(self, backup_dir: str = "backups") -> Path:
+        '''
+            Weekly reset: backs up and clears the apps table. Reviews are reused across
+            weeks and untouched here. Backup and delete share the server's own connection
+            and a single lock acquisition, so no in-flight request can interleave with it.
+        '''
+        with self._lock:
+            dest = self._snapshot_table_locked("apps", Path(self._path).stem, backup_dir)
+            self._db.execute("DELETE FROM apps")  # type: ignore
+            self._db.conn.commit()  # type: ignore
+            return dest
 
 
 _db: Optional[Database] = None
