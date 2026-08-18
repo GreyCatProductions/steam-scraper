@@ -149,6 +149,9 @@ class Database:
             FAILURE_THRESHOLD, the app is marked scraped_ok=-1 so it's no longer claimable
             or counted as remaining work.
         '''
+        if appid <= 0:
+            log.warning("Refusing to report failure for invalid appid=%s", appid)
+            return
         with self._lock:
             self._db.execute(  # type: ignore[union-attr]
                 """
@@ -164,6 +167,9 @@ class Database:
             )
 
     def save_game_page_info(self, page: GamePage) -> None:
+        if page.appid <= 0:
+            log.warning("Refusing to save GamePage with invalid appid=%s", page.appid)
+            return
         with self._lock:
             self._db["apps"].upsert(  # type: ignore[union-attr]
                 dataclasses.asdict(page),

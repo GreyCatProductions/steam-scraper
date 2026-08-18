@@ -96,7 +96,7 @@ def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
         return None
 
     try:
-        return extract(r.text)
+        return extract(r.text, app.appid)
     except Exception as e:
         tqdm.write(f"Failed to extract {url}: {e}")
         return None
@@ -137,7 +137,7 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
                 tqdm.write("Failed to submit results after retries")
 
         _ONE_DAY = 86400
-        valid_pages = [p for p in results if p.scraped_ok]
+        valid_pages = [p for p in results if p.is_valid()]
         for page in tqdm(valid_pages, desc="Fetching reviews"):
             chunk: list[UserReview] = []
             total = 0

@@ -286,13 +286,25 @@ def _extract_bundle_count(soup: BeautifulSoup) -> int:
     return 0
 
 
-def extract(html: str) -> GamePage:
+def extract(html: str, appid: Optional[int] = None) -> GamePage:
     '''
         Extracts all data from the html and returns GamePage object. The html is expected to be an english language steam store page.
-        
-        Throws exception on error.
+
+        `appid` should be the id that was requested (the one the caller already knows), and is
+        trusted over whatever can be scraped back out of the HTML: pages that don't follow the
+        normal game-page layout (event hubs, franchise pages, delisted redirects, ...) don't carry
+        a parseable og:url, and falling back to a sentinel like 0 there would collapse unrelated
+        apps into a single row downstream. When appid is omitted, it's best-effort parsed from the
+        page itself (used by the CLI below for ad-hoc inspection of a saved HTML file).
+
+        Throws exception on error, including if no valid (> 0) appid could be resolved - 0 is not
+        a real Steam appid and must never be stored.
     '''
     soup = BeautifulSoup(html, "html.parser")
+
+    resolved_appid = appid if appid is not None else _extract_appid(soup)
+    if resolved_appid <= 0:
+        raise ValueError(f"Could not resolve a valid appid (got {resolved_appid})")
 
     review_summary_recent, review_count_recent, review_pct_recent, \
         review_summary_all, review_count_all, review_pct_all = _extract_reviews(soup)
@@ -302,7 +314,7 @@ def extract(html: str) -> GamePage:
     website, social_links = _extract_website_and_social(soup)
 
     return GamePage(
-        appid=_extract_appid(soup),
+        appid=resolved_appid,
         title=_extract_title(soup),
         short_description=_extract_short_description(soup),
         description=_extract_description(soup),
