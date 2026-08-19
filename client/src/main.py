@@ -66,6 +66,27 @@ def get_latest_review_timestamp(server_url: str, appid: int) -> int:
     r.raise_for_status()
     return r.json()["timestamp"]
 
+def fetch_apps(server_url: str, batch_size: int) -> list[SteamApp]:
+    COOLDOWN = 300
+    '''
+        Fetches apps from processing server. Only returns when apps got successfully fetched. 
+        Hence guaranteed to not be empty.
+    '''
+    
+    apps: list[SteamApp] = []
+    
+    while True:
+        try:
+            apps: list[SteamApp] = fetch_batch(server_url, batch_size)
+        except requests.RequestException as e:
+            print(f"Could not reach server: {e}, retrying in {COOLDOWN} seconds...")
+            time.sleep(COOLDOWN)
+            continue
+        if not apps:
+            print("No apps available, rechecking in {COOLDOWN} seconds...")
+            time.sleep(COOLDOWN)
+            continue
+        return apps
 
 def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
@@ -109,21 +130,12 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
         print(f"Using default IP. No proxy.")
         
     while True:
-        try:
-            apps = fetch_batch(server_url, batch_size)
-        except requests.RequestException as e:
-            print(f"Could not reach server: {e}, retrying in 5 minutes...")
-            time.sleep(300)
-            continue
-        if not apps:
-            print("No apps available, rechecking in 5 minutes...")
-            time.sleep(300)
-            continue
+        apps: list[SteamApp] = fetch_apps(server_url, batch_size)
 
         results: list[GamePage] = []
         for app in tqdm(apps, desc=f"Scraping batch of {len(apps)}"):
             page = scrape_app(app, proxy)
-            if page is not None:
+            if page is not None and page.is_valid():
                 results.append(page)
             else:
                 if not report_failure(server_url, app.appid):

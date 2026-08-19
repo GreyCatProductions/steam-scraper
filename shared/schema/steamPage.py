@@ -65,9 +65,5 @@ class GamePage:
     scraped_ok: bool = True
 
     def is_valid(self) -> bool:
-        required_str = [self.title, self.short_description, self.description, self.header_image]
-        return bool(
-            self.appid
-            and all(required_str)
-            and self.developer
-        )
+        required = [self.title, self.short_description, self.description, self.header_image]
+        return bool(self.appid > 0 and self.developer and all(required))
