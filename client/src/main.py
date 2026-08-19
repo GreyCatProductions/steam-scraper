@@ -15,6 +15,8 @@ from shared.utils import reconstruct_steam_url
 MIN_SLEEP = 1.0
 MAX_SLEEP = 3.0
 ATTEMPTS_ON_FAIL = 5
+ONE_DAY_SECONDS = 86400
+REVIEW_UPLOAD_CHUNK_SIZE = 100
 
 
 def fetch_batch(server_url: str, batch: int) -> list[SteamApp]:
@@ -67,11 +69,11 @@ def get_latest_review_timestamp(server_url: str, appid: int) -> int:
     return r.json()["timestamp"]
 
 def fetch_apps(server_url: str, batch_size: int) -> list[SteamApp]:
-    COOLDOWN = 300
     '''
         Fetches apps from processing server. Only returns when apps got successfully fetched. 
         Hence guaranteed to not be empty.
     '''
+    COOLDOWN = 300
     
     apps: list[SteamApp] = []
     
@@ -87,6 +89,25 @@ def fetch_apps(server_url: str, batch_size: int) -> list[SteamApp]:
             time.sleep(COOLDOWN)
             continue
         return apps
+
+def scrape_results(server_url: str, proxy: str | None, apps: list[SteamApp]) -> list[GamePage]:
+    results: list[GamePage] = []
+    for app in tqdm(apps, desc=f"Scraping batch of {len(apps)}"):
+        page = scrape_app(app, proxy)
+        if page is not None and page.is_valid():
+            results.append(page)
+        else:
+            if not report_failure(server_url, app.appid):
+                tqdm.write(f"  Failed to report failure for {app.appid}.")
+        time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
+
+    if results:
+        if submit_results(server_url, results):
+            tqdm.write(f"Submitted {len(results)}/{len(apps)} results")
+        else:
+            tqdm.write("Failed to submit results")
+
+    return results
 
 def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
     url = reconstruct_steam_url(app.appid)
@@ -123,6 +144,46 @@ def scrape_app(app: SteamApp, proxy: str | None) -> GamePage | None:
         return None
 
 
+def _flush_review_chunk(server_url: str, appid: int, chunk: list[UserReview]) -> bool:
+    if submit_reviews(server_url, chunk):
+        return True
+    tqdm.write(f"  Giving up on reviews for {appid} after failed upload")
+    return False
+
+
+def fetch_reviews_for_app(server_url: str, proxy: str | None, appid: int) -> None:
+    #reviews are fetched by recent. Fetching already oldest saved state from db for offset
+    try:
+        latest_ts = get_latest_review_timestamp(server_url, appid)
+    except requests.RequestException:
+        latest_ts = 0
+    stop_before = max(0, latest_ts - ONE_DAY_SECONDS)
+
+    chunk: list[UserReview] = []
+    total = 0
+    failed = False
+    try:
+        for batch in iter_reviews(appid, stop_before=stop_before, proxy=proxy):
+            chunk.extend(batch)
+            total += len(batch)
+            if len(chunk) >= REVIEW_UPLOAD_CHUNK_SIZE:
+                if not _flush_review_chunk(server_url, appid, chunk):
+                    failed = True
+                    break
+                chunk = []
+    except requests.RequestException as e:
+        tqdm.write(f"  Reviews fetch failed for {appid}: {e}")
+        failed = True
+
+    if not failed and chunk and not _flush_review_chunk(server_url, appid, chunk):
+        failed = True
+
+    if not failed and not mark_reviews_done(server_url, appid):
+        tqdm.write(f"  Failed to mark reviews done for {appid} after retries")
+
+    tqdm.write(f"Fetched all reviews for appid {appid} : {total} reviews")
+
+
 def run(server_url: str, proxy: str | None, batch_size: int) -> None:
     if proxy:
         print(f"Using proxy: {proxy}")
@@ -132,60 +193,11 @@ def run(server_url: str, proxy: str | None, batch_size: int) -> None:
     while True:
         apps: list[SteamApp] = fetch_apps(server_url, batch_size)
 
-        results: list[GamePage] = []
-        for app in tqdm(apps, desc=f"Scraping batch of {len(apps)}"):
-            page = scrape_app(app, proxy)
-            if page is not None and page.is_valid():
-                results.append(page)
-            else:
-                if not report_failure(server_url, app.appid):
-                    tqdm.write(f"  Failed to report failure for {app.appid} after retries")
-            time.sleep(random.uniform(MIN_SLEEP, MAX_SLEEP))
+        results: list[GamePage] = scrape_results(server_url, proxy, apps)
 
-        if results:
-            if submit_results(server_url, results):
-                tqdm.write(f"Submitted {len(results)}/{len(apps)} results")
-            else:
-                tqdm.write("Failed to submit results after retries")
-
-        _ONE_DAY = 86400
         valid_pages = [p for p in results if p.is_valid()]
         for page in tqdm(valid_pages, desc="Fetching reviews"):
-            chunk: list[UserReview] = []
-            total = 0
-            failed = False
-            
-            #reviews are fetched by recent. Fetching already oldest saved state from db for offset
-            try:
-                latest_ts = get_latest_review_timestamp(server_url, page.appid)
-            except requests.RequestException:
-                latest_ts = 0
-            stop_before = max(0, latest_ts - _ONE_DAY)
-            
-            
-            try:
-                for batch in iter_reviews(page.appid, stop_before=stop_before, proxy=proxy):
-                    chunk.extend(batch)
-                    total += len(batch)
-                    if len(chunk) >= 100:
-                        if submit_reviews(server_url, chunk):
-                            chunk = []
-                        else:
-                            tqdm.write(f"  Giving up on reviews for {page.appid} after failed upload")
-                            failed = True
-                            break
-            except requests.RequestException as e:
-                tqdm.write(f"  Reviews fetch failed for {page.appid}: {e}")
-                failed = True
-
-            if not failed and chunk:
-                if not submit_reviews(server_url, chunk):
-                    tqdm.write(f"  Giving up on reviews for {page.appid} after failed upload")
-                    failed = True
-            if not failed:
-                if not mark_reviews_done(server_url, page.appid):
-                    tqdm.write(f"  Failed to mark reviews done for {page.appid} after retries")
-            tqdm.write(f"  appid {page.appid}: {total} reviews")
+            fetch_reviews_for_app(server_url, proxy, page.appid)
 
 
 def main():
