@@ -37,13 +37,20 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
 def _parse_player_count_csv(path: Path) -> list[tuple[str, int | None, float | None]]:
     with open(path, encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if reader.fieldnames is None or "DateTime" not in reader.fieldnames:
+            preview = path.read_text(encoding="utf-8-sig", errors="replace")[:300]
+            raise RuntimeError(
+                f"Downloaded file isn't the expected CSV (columns: {reader.fieldnames}). "
+                f"First 300 chars:\n{preview}"
+            )
         return [
             (
                 row["DateTime"],
                 int(row["Players"]) if row.get("Players") else None,
                 float(row["Average Players"]) if row.get("Average Players") else None,
             )
-            for row in csv.DictReader(f)
+            for row in reader
         ]
 
 
