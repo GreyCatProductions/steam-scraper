@@ -1,7 +1,9 @@
 import argparse
+import random
 import sqlite3
 import sys
 import tempfile
+import time
 import csv
 from pathlib import Path
 from typing import Callable
@@ -11,6 +13,13 @@ from tqdm import tqdm
 CDP_URL = "http://127.0.0.1:9222"  # not "localhost" - that can resolve to ::1 (IPv6) on Windows,
 CLICK_TIMEOUT_MS = 5000
 PREFLIGHT_APPID = 730  # Counter-Strike 2 - always has chart history, a good canary for access issues
+
+MIN_REQUEST_DELAY = 5.0
+MAX_REQUEST_DELAY = 10.0
+
+CLOUDFLARE_TITLE_MARKER = "Just a moment"
+CLOUDFLARE_COOLDOWN_SECONDS = 60
+CLOUDFLARE_MAX_RETRIES = 3
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -38,6 +47,23 @@ def _parse_player_count_csv(path: Path) -> list[tuple[str, int | None, float | N
         ]
 
 
+def _goto(page: Page, url: str, status: Callable[[str], None]) -> None:
+    '''
+        Navigates, retrying through Cloudflare's "Just a moment..." interstitial if it shows up.
+        Even with a real, logged-in browser this can still appear occasionally - waiting it out
+        beats failing the appid outright over something that usually clears on its own.
+    '''
+    for attempt in range(CLOUDFLARE_MAX_RETRIES + 1):
+        page.goto(url)
+        if CLOUDFLARE_TITLE_MARKER not in page.title():
+            return
+        if attempt == CLOUDFLARE_MAX_RETRIES:
+            raise RuntimeError(f"Cloudflare check did not clear after {CLOUDFLARE_MAX_RETRIES} retries")
+        status(f"Cloudflare check detected, waiting {CLOUDFLARE_COOLDOWN_SECONDS}s "
+               f"before retry {attempt + 1}/{CLOUDFLARE_MAX_RETRIES}...")
+        time.sleep(CLOUDFLARE_COOLDOWN_SECONDS)
+
+
 def _check_access(page: Page) -> None:
     '''
         Fails fast, once, before the batch loop. Without this, a missing login (or any other
@@ -45,7 +71,7 @@ def _check_access(page: Page) -> None:
         silently on every single appid in the list - potentially thousands of 5s timeouts before
         anyone notices zero rows got saved.
     '''
-    page.goto(f"https://steamdb.info/app/{PREFLIGHT_APPID}/charts/#max")
+    _goto(page, f"https://steamdb.info/app/{PREFLIGHT_APPID}/charts/#max", print)
     try:
         page.locator("image.highcharts-button-symbol").wait_for(timeout=CLICK_TIMEOUT_MS)
     except Exception as e:
@@ -61,7 +87,7 @@ def _download_player_counts(
     page: Page, appid: int, status: Callable[[str], None]
 ) -> list[tuple[str, int | None, float | None]]:
     status(f"appid {appid}: opening chart page")
-    page.goto(f"https://steamdb.info/app/{appid}/charts/#max")
+    _goto(page, f"https://steamdb.info/app/{appid}/charts/#max", status)
 
     status(f"appid {appid}: opening export menu")
     icon = page.locator("image.highcharts-button-symbol")
@@ -120,17 +146,22 @@ def run(db_path: str) -> None:
             pbar = tqdm(appids, desc="Fetching player counts")
             for appid in pbar:
                 try:
-                    rows = _download_player_counts(page, appid, pbar.set_description)
-                except Exception as e:
-                    tqdm.write(f"  Skipping appid {appid}: {e}")
-                    continue
-                pbar.set_description(f"appid {appid}: saving {len(rows)} rows")
-                conn.executemany(
-                    "INSERT OR REPLACE INTO player_counts (appid, datetime, players, average_players) "
-                    "VALUES (?, ?, ?, ?)",
-                    [(appid, dt, players, avg) for dt, players, avg in rows],
-                )
-                conn.commit()
+                    try:
+                        rows = _download_player_counts(page, appid, pbar.set_description)
+                    except Exception as e:
+                        tqdm.write(f"  Skipping appid {appid}: {e}")
+                        continue
+                    pbar.set_description(f"appid {appid}: saving {len(rows)} rows")
+                    conn.executemany(
+                        "INSERT OR REPLACE INTO player_counts (appid, datetime, players, average_players) "
+                        "VALUES (?, ?, ?, ?)",
+                        [(appid, dt, players, avg) for dt, players, avg in rows],
+                    )
+                    conn.commit()
+                finally:
+                    # Space requests out so this doesn't look like a scraping burst - runs
+                    # whether the appid succeeded, failed, or hit `continue` above.
+                    time.sleep(random.uniform(MIN_REQUEST_DELAY, MAX_REQUEST_DELAY))
         finally:
             page.close()
 
