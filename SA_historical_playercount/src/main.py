@@ -36,19 +36,37 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
 
 
 def _parse_player_count_csv(path: Path) -> list[tuple[str, int | None, float | None]]:
+    '''
+        The export's delimiter isn't fixed - it follows the browser's locale (some locales use
+        ',' as the decimal separator, so the export switches to ';' to stay unambiguous), and
+        column casing has been observed to vary too ("DateTime" vs "Datetime"). Sniff the
+        delimiter and match column names case-insensitively instead of assuming either.
+    '''
     with open(path, encoding="utf-8-sig", newline="") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames is None or "DateTime" not in reader.fieldnames:
-            preview = path.read_text(encoding="utf-8-sig", errors="replace")[:300]
+        sample = f.read(2048)
+        f.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;")
+        except csv.Error:
+            dialect = csv.excel
+
+        reader = csv.DictReader(f, dialect=dialect)
+        fields = {name.lower(): name for name in (reader.fieldnames or [])}
+        if "datetime" not in fields:
             raise RuntimeError(
                 f"Downloaded file isn't the expected CSV (columns: {reader.fieldnames}). "
-                f"First 300 chars:\n{preview}"
+                f"First 300 chars:\n{sample[:300]}"
             )
+
+        datetime_col = fields["datetime"]
+        players_col = fields.get("players")
+        avg_col = fields.get("average players")
+
         return [
             (
-                row["DateTime"],
-                int(row["Players"]) if row.get("Players") else None,
-                float(row["Average Players"]) if row.get("Average Players") else None,
+                row[datetime_col],
+                int(row[players_col]) if players_col and row.get(players_col) else None,
+                float(row[avg_col]) if avg_col and row.get(avg_col) else None,
             )
             for row in reader
         ]
