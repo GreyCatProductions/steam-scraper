@@ -8,9 +8,9 @@ from typing import Callable
 from playwright.sync_api import sync_playwright, Page
 from tqdm import tqdm
 
-CDP_URL = "http://localhost:9222"
-
+CDP_URL = "http://127.0.0.1:9222"  # not "localhost" - that can resolve to ::1 (IPv6) on Windows,
 CLICK_TIMEOUT_MS = 5000
+PREFLIGHT_APPID = 730  # Counter-Strike 2 - always has chart history, a good canary for access issues
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -36,6 +36,25 @@ def _parse_player_count_csv(path: Path) -> list[tuple[str, int | None, float | N
             )
             for row in csv.DictReader(f)
         ]
+
+
+def _check_access(page: Page) -> None:
+    '''
+        Fails fast, once, before the batch loop. Without this, a missing login (or any other
+        precondition that blocks every appid identically, not just one) would otherwise time out
+        silently on every single appid in the list - potentially thousands of 5s timeouts before
+        anyone notices zero rows got saved.
+    '''
+    page.goto(f"https://steamdb.info/app/{PREFLIGHT_APPID}/charts/#max")
+    try:
+        page.locator("image.highcharts-button-symbol").wait_for(timeout=CLICK_TIMEOUT_MS)
+    except Exception as e:
+        sys.exit(
+            f"Could not find the chart export button on a known-good appid ({PREFLIGHT_APPID}).\n"
+            "You're probably not logged in to steamdb.info in the Chrome window this script is "
+            "attached to (or the page layout changed). Log in there, then re-run this script.\n"
+            f"({e})"
+        )
 
 
 def _download_player_counts(
@@ -94,6 +113,10 @@ def run(db_path: str) -> None:
         context = browser.contexts[0]
         page = context.new_page()
         try:
+            print("Checking access (login, page layout)...")
+            _check_access(page)
+            print("Access confirmed.")
+
             pbar = tqdm(appids, desc="Fetching player counts")
             for appid in pbar:
                 try:
