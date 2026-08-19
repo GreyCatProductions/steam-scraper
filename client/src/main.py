@@ -171,7 +171,7 @@ def fetch_reviews_for_app(server_url: str, proxy: str | None, appid: int) -> Non
                     failed = True
                     break
                 chunk = []
-    except requests.RequestException as e:
+    except (requests.RequestException, KeyError, TypeError, ValueError) as e:
         tqdm.write(f"  Reviews fetch failed for {appid}: {e}")
         failed = True
 

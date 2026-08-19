@@ -153,6 +153,19 @@ class Database:
             log.warning("Refusing to report failure for invalid appid=%s", appid)
             return
         with self._lock:
+            row = self._db.execute(  # type: ignore[union-attr]
+                "SELECT scraped_ok, fail_count FROM apps WHERE appid = ?", [appid]
+            ).fetchone()
+            if row is not None and row[0] == -1:
+                # Already excluded: claim_apps should never hand this appid out again, so a
+                # failure report at this point means something is calling report_failure outside
+                # the normal claim -> scrape -> fail cycle.
+                log.warning(
+                    "report_failure called on already-excluded appid=%s (fail_count=%s); "
+                    "check the caller instead of letting this repeat",
+                    appid, row[1],
+                )
+                return
             self._db.execute(  # type: ignore[union-attr]
                 """
                 UPDATE apps
@@ -184,6 +197,12 @@ class Database:
             its fields and stamps last_seen, rather than creating a duplicate row.
         '''
         now = int(time.time())
+        valid = [r for r in reviews if r.recommendation_id > 0 and r.appid > 0]
+        if len(valid) < len(reviews):
+            log.warning("Refusing to save %d review(s) with invalid recommendation_id/appid", len(reviews) - len(valid))
+        reviews = valid
+        if not reviews:
+            return
         with self._lock:
             rows = [dict(dataclasses.asdict(r), last_seen=now) for r in reviews]
             self._db["reviews"].upsert_all(  # type: ignore[union-attr]

@@ -225,9 +225,14 @@ def _extract_dlc(soup: BeautifulSoup) -> list[DLC]:
     for row in soup.find_all("a", class_="game_area_dlc_row"):
         if not isinstance(row, Tag):
             continue
+        raw_appid = row.get("data-ds-appid")
+        if raw_appid is None:
+            continue
         try:
-            dlc_appid = int(str(row.get("data-ds-appid", "0")))
+            dlc_appid = int(str(raw_appid))
         except ValueError:
+            continue
+        if dlc_appid <= 0:
             continue
         name_el = row.find(class_="game_area_dlc_name")
         if name_el:
