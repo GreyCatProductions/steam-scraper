@@ -255,14 +255,16 @@ class Database:
         with self._lock:
             return self._snapshot_table_locked("reviews", f"{Path(self._path).stem}_reviews", backup_dir)
 
-    def reset_apps(self, backup_dir: str = "backups") -> Path:
+    def reset_apps(self, backup_dir: str = "backups", backup: bool = True) -> Optional[Path]:
         '''
-            Weekly reset: backs up and clears the apps table. Reviews are reused across
-            weeks and untouched here. Backup and delete share the server's own connection
-            and a single lock acquisition, so no in-flight request can interleave with it.
+            Weekly reset: clears the apps table, backing it up first unless `backup` is False
+            (the caller already took a fresh-enough backup itself, e.g. right when scraping
+            completed). Reviews are reused across weeks and untouched here. Backup and delete
+            share the server's own connection and a single lock acquisition, so no in-flight
+            request can interleave with it.
         '''
         with self._lock:
-            dest = self._snapshot_table_locked("apps", Path(self._path).stem, backup_dir)
+            dest = self._snapshot_table_locked("apps", Path(self._path).stem, backup_dir) if backup else None
             self._db.execute("DELETE FROM apps")  # type: ignore
             self._db.conn.commit()  # type: ignore
             return dest

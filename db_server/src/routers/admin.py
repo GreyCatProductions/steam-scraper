@@ -5,8 +5,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.post("/reset")
-def reset():
-    get_db().reset_apps()
+def reset(backup: bool = True):
+    get_db().reset_apps(backup=backup)
     return {"ok": True}
 
 

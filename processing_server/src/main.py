@@ -75,7 +75,7 @@ def wait_for_scrape_completion(total: int) -> None:
 def wait_until_next_monday() -> None:
     wait = seconds_until_next_monday()
     wake = datetime.now() + timedelta(seconds=wait)
-    log.info("All apps scraped. Next cycle: %s (%.1fh from now)", wake.strftime("%Y-%m-%d %H:%M"), wait / 3600)
+    log.info("Next cycle: %s (%.1fh from now)", wake.strftime("%Y-%m-%d %H:%M"), wait / 3600)
     time.sleep(wait)
 
 
@@ -83,10 +83,14 @@ def weekly_cycle(args: argparse.Namespace) -> None:
     while True:
         total = db_client.get_client().count_apps()
         wait_for_scrape_completion(total)
+
+        dest = db_client.get_client().backup()
+        log.info("All apps scraped, backed up to %s", dest)
+
         wait_until_next_monday()
 
         log.info("Starting weekly reset...")
-        db_client.get_client().reset()
+        db_client.get_client().reset(backup=False)  # already backed up right after completion
         fill_app_entries(args)
         log.info("Weekly cycle started.")
 

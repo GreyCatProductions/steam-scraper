@@ -49,9 +49,14 @@ class DbClient:
         r = requests.post(f"{self._base}/reviews/done/{appid}", timeout=10)
         r.raise_for_status()
 
-    def reset(self) -> None:
-        r = requests.post(f"{self._base}/admin/reset", timeout=120)
+    def reset(self, backup: bool = True) -> None:
+        r = requests.post(f"{self._base}/admin/reset", params={"backup": backup}, timeout=120)
         r.raise_for_status()
+
+    def backup(self) -> str:
+        r = requests.post(f"{self._base}/admin/backup", timeout=120)
+        r.raise_for_status()
+        return r.json()["backup"]
 
     def ping(self) -> bool:
         try:
