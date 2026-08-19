@@ -14,6 +14,8 @@ from processing_server.src.api import app
 
 log = logging.getLogger(__name__)
 
+CHECK_INTERVAL = 300
+
 
 def setup_logging(log_file: str = "logs/server.log") -> None:
     Path(log_file).parent.mkdir(parents=True, exist_ok=True)
@@ -29,11 +31,12 @@ def setup_logging(log_file: str = "logs/server.log") -> None:
 
 
 def fill_app_entries(args: argparse.Namespace):
-    def iter_pages_from_json(path: str):
-        with open(path, encoding="utf-8") as f:
-            yield json.load(f)
+    if args.app_list:
+        with open(args.app_list, encoding="utf-8") as f:
+            pages = [json.load(f)]
+    else:
+        pages = fetch_all_apps(args.key)
 
-    pages = iter_pages_from_json(args.app_list) if args.app_list else fetch_all_apps(args.key)
     total = 0
     for page in pages:
         apps = [SteamApp.from_dict(a) for a in page]
@@ -49,31 +52,38 @@ def seconds_until_next_monday() -> float:
     return (next_monday - now).total_seconds()
 
 
-def weekly_cycle(args: argparse.Namespace) -> None:
-    CHECK_INTERVAL = 300
+def wait_for_scrape_completion(total: int) -> None:
+    remaining = db_client.get_client().count_apps(unscraped_only=True)
 
+    while remaining > 0:
+        previous_remaining = remaining
+        time.sleep(CHECK_INTERVAL)
+        remaining = db_client.get_client().count_apps(unscraped_only=True)
+        scraped = previous_remaining - remaining
+
+        rate_str = "N/A"
+        eta_str = "calculating..."
+        if scraped > 0:
+            rate = scraped / CHECK_INTERVAL
+            rate_str = f"{rate * 3600:.0f} apps/hr"
+            eta_str = str(timedelta(seconds=int(remaining / rate)))
+
+        log.info("Progress: %d/%d scraped | %d remaining | rate: %s | ETA: %s",
+                 total - remaining, total, remaining, rate_str, eta_str)
+
+
+def wait_until_next_monday() -> None:
+    wait = seconds_until_next_monday()
+    wake = datetime.now() + timedelta(seconds=wait)
+    log.info("All apps scraped. Next cycle: %s (%.1fh from now)", wake.strftime("%Y-%m-%d %H:%M"), wait / 3600)
+    time.sleep(wait)
+
+
+def weekly_cycle(args: argparse.Namespace) -> None:
     while True:
         total = db_client.get_client().count_apps()
-        remaining = db_client.get_client().count_apps(unscraped_only=True)
-
-        while remaining > 0:
-            previous_remaining = remaining
-            time.sleep(CHECK_INTERVAL)
-            remaining = db_client.get_client().count_apps(unscraped_only=True)
-            scraped = previous_remaining - remaining
-            if scraped > 0:
-                rate = scraped / CHECK_INTERVAL
-                eta = timedelta(seconds=int(remaining / rate))
-                log.info("Progress: %d/%d scraped | %d remaining | rate: %.0f apps/hr | ETA: %s",
-                         total - remaining, total, remaining, rate * 3600, eta)
-            else:
-                log.info("Progress: %d/%d scraped | %d remaining | ETA: calculating...",
-                         total - remaining, total, remaining)
-
-        wait = seconds_until_next_monday()
-        wake = datetime.now() + timedelta(seconds=wait)
-        log.info("All apps scraped. Next cycle: %s (%.1fh from now)", wake.strftime("%Y-%m-%d %H:%M"), wait / 3600)
-        time.sleep(wait)
+        wait_for_scrape_completion(total)
+        wait_until_next_monday()
 
         log.info("Starting weekly reset...")
         db_client.get_client().reset()
