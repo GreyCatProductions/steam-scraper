@@ -40,8 +40,8 @@ def _parse_player_count_csv(path: Path) -> list[tuple[str, int | None, float | N
         return [
             (
                 row["DateTime"],
-                int(row["Players"]) if row["Players"] else None,
-                float(row["Average Players"]) if row["Average Players"] else None,
+                int(row["Players"]) if row.get("Players") else None,
+                float(row["Average Players"]) if row.get("Average Players") else None,
             )
             for row in csv.DictReader(f)
         ]
