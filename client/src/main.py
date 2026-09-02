@@ -85,7 +85,7 @@ def fetch_apps(server_url: str, batch_size: int) -> list[SteamApp]:
             time.sleep(COOLDOWN)
             continue
         if not apps:
-            print("No apps available, rechecking in {COOLDOWN} seconds...")
+            print(f"No apps available, rechecking in {COOLDOWN} seconds...")
             time.sleep(COOLDOWN)
             continue
         return apps
