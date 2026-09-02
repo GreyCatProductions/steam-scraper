@@ -51,7 +51,9 @@ def fetch_all_apps(api_key):
             print("No apps returned, stopping.")
             break
 
-        yield apps
+        filtered = [app for app in apps if app.get("appid", 0) != 0]
+        if filtered:
+            yield filtered
 
         print(f"  Got {len(apps)} apps.")
 

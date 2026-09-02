@@ -20,3 +20,6 @@ class SteamApp:
             last_modified=data.get("last_modified", 0),
             price_change_number=data.get("price_change_number", 0),
         )
+        
+    def isValid(self) -> bool:
+        return self.appid != 0 and self.name != "" 
