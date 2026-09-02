@@ -82,6 +82,8 @@ class Database:
                 pk="appid",  # type: ignore[arg-type]
                 alter=True,  # type: ignore[arg-type]
             )
+            #auto fail entries with appid 0
+            self._db.execute("UPDATE apps SET scraped_ok = -1 WHERE appid = 0")  # type: ignore[union-attr]
 
     def _scraped_col_exists(self) -> bool:
         return "scraped_ok" in {col.name for col in self._db["apps"].columns}  # type: ignore
@@ -115,7 +117,7 @@ class Database:
             table = self._db["apps"]  # type: ignore[union-attr]
             now = int(time.time())
             cutoff = now - timeout_seconds
-            where = "scraped_ok IS NOT 1 AND scraped_ok IS NOT -1 AND (claimed_at IS NULL OR claimed_at < ?)"
+            where = "appid != 0 AND scraped_ok IS NOT 1 AND scraped_ok IS NOT -1 AND (claimed_at IS NULL OR claimed_at < ?)"
 
             bounds = self._db.execute("SELECT MIN(appid), MAX(appid) FROM apps").fetchone()  # type: ignore
             rows: list[dict] = []

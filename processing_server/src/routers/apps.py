@@ -16,7 +16,8 @@ def stats():
 
 @router.get("/next")
 def get_next_batch(batch: int = 50):
-    return [dataclasses.asdict(a) for a in get_client().claim_apps(batch)]
+    apps = [a for a in get_client().claim_apps(batch) if a.appid != 0]
+    return [dataclasses.asdict(a) for a in apps]
 
 
 @router.post("/results")
