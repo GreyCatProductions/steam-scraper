@@ -23,6 +23,12 @@ def count_apps(unscraped_only: bool = False):
     return {"count": get_db().count_apps(unscraped_only=unscraped_only)}
 
 
+@router.get("/remaining")
+def remaining_apps(limit: int = 1000):
+    limit = max(1, min(limit, 50_000))
+    return {"appids": get_db().get_remaining_appids(limit)}
+
+
 @router.post("/results")
 def save_results(results: list[GamePage]):
     for result in results:

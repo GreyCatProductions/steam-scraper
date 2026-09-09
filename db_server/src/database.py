@@ -105,6 +105,16 @@ class Database:
                 return table.count_where("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
             return table.count
 
+    def get_remaining_appids(self, limit: int) -> list[int]:
+        with self._lock:
+            table = self._db["apps"]  # type: ignore[union-attr]
+            rows = table.rows_where(
+                "scraped_ok IS NOT 1 AND scraped_ok IS NOT -1",
+                order_by="appid",
+                limit=limit,
+            )
+            return [r["appid"] for r in rows]
+
     def claim_apps(self, amount: int, timeout_seconds: int = 300) -> list[SteamApp]:
         '''
             Claims a batch of unscraped apps, or apps whose claim has expired,
