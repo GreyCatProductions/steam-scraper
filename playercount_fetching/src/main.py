@@ -48,18 +48,35 @@ def load_appids(db: Path) -> list[int]:
         return [row[0] for row in conn.execute("SELECT appid FROM apps WHERE appid != 0 ORDER BY appid")]
 
 
-def fetch_playercounts(appids: list[int]) -> list[AppPlayerCount]:
-    """Fetches the player count history for every app. Apps whose request fails are kept with no entries."""
+def fetch_playercounts(appids: list[int]) -> tuple[list[AppPlayerCount], list[int]]:
+    """Fetches the player count history for every app. Apps whose request fails are kept with no entries.
+    Returns the results and the appids that failed."""
     playercounts = [AppPlayerCount(appid) for appid in appids]
+    failed: list[int] = []
 
-    for app in tqdm(playercounts, desc="Fetching player counts", unit="app"):
+    progress = tqdm(playercounts, desc="Fetching player counts", unit="app")
+    for app in progress:
         try:
             app.entries = get_player_numbers(app_id=app.appid)
         except requests.RequestException as e:
+            failed.append(app.appid)
+            progress.set_postfix(failed=len(failed))
             tqdm.write(f"appid {app.appid} failed: {e}")
         time.sleep(random.randint(REQUEST_COOLDOWN_SECONDS_MIN, REQUEST_COOLDOWN_SECONDS_MAX))
 
-    return playercounts
+    return playercounts, failed
+
+
+def print_summary(playercounts: list[AppPlayerCount], failed: list[int]) -> None:
+    with_data = sum(1 for app in playercounts if app.entries)
+    no_data = len(playercounts) - with_data - len(failed)
+
+    print(f"Fetched {len(playercounts)} apps:")
+    print(f"  succeeded with data: {with_data}")
+    print(f"  not tracked by steamcharts: {no_data}")
+    print(f"  failed: {len(failed)}")
+    if failed:
+        print(f"  failed appids: {', '.join(map(str, failed))}")
 
 
 def save_playercounts(db: Path, playercounts: list[AppPlayerCount]) -> int:
@@ -80,7 +97,8 @@ def main():
         print(f"Reading appids from {args.db}")
         appids: List[int] = load_appids(args.db)
 
-        playercounts: List[AppPlayerCount] = fetch_playercounts(appids)
+        playercounts, failed = fetch_playercounts(appids)
+        print_summary(playercounts, failed)
 
         saved: int = save_playercounts(args.db, playercounts)
         print(f"Saved {saved} player count entries")
