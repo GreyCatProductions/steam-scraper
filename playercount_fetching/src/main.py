@@ -1,4 +1,5 @@
 import argparse
+import random
 import sqlite3
 import time
 from contextlib import closing
@@ -9,7 +10,7 @@ import requests
 from tqdm import tqdm
 
 from playercount_fetching.schema.appPlayerCount import AppPlayerCount
-from playercount_fetching.src.steam_db_scraper import get_player_numbers, REQUEST_COOLDOWN_SECONDS
+from playercount_fetching.src.steam_db_scraper import get_player_numbers, REQUEST_COOLDOWN_SECONDS_MIN, REQUEST_COOLDOWN_SECONDS_MAX
 
 DB_TIMEOUT_SECONDS = 30
 
@@ -56,7 +57,7 @@ def fetch_playercounts(appids: list[int]) -> list[AppPlayerCount]:
             app.entries = get_player_numbers(app_id=app.appid)
         except requests.RequestException as e:
             tqdm.write(f"appid {app.appid} failed: {e}")
-        time.sleep(REQUEST_COOLDOWN_SECONDS)
+        time.sleep(random.randint(REQUEST_COOLDOWN_SECONDS_MIN, REQUEST_COOLDOWN_SECONDS_MAX))
 
     return playercounts
 

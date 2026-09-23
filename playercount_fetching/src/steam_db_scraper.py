@@ -8,8 +8,9 @@ from playercount_fetching.schema.appPlayerCount import PlayercountEntry
 log = logging.getLogger(__name__)
 
 URL_STRUCTURE = "https://steamcharts.com/app/{APP_ID}/chart-data.json"
-REQUEST_COOLDOWN_SECONDS = 0.5
-BLOCKED_STATUSES = {429, 503}  # rate limited / temporarily unavailable
+REQUEST_COOLDOWN_SECONDS_MIN = 1
+REQUEST_COOLDOWN_SECONDS_MAX = 3
+BLOCKED_STATUSES = {429, 503}
 MAX_RETRIES = 5
 BACKOFF_BASE_SECONDS = 10
 
@@ -23,20 +24,20 @@ def get_player_numbers(app_id: int) -> list[PlayercountEntry]:
         r = requests.get(url, timeout=30)
         if r.status_code not in BLOCKED_STATUSES or attempt == MAX_RETRIES:
             break
-        # Blocked for spamming: honor Retry-After if given, otherwise back off exponentially
+
         retry_after = r.headers.get("Retry-After", "")
         wait = int(retry_after) if retry_after.isdigit() else BACKOFF_BASE_SECONDS * 2 ** attempt
         log.warning("appid %s: HTTP %s, retrying in %ss (attempt %d/%d)",
                     app_id, r.status_code, wait, attempt + 1, MAX_RETRIES)
         time.sleep(wait)
 
-    if r.status_code == 404:
+    if r.status_code == 404: # type: ignore
         return []
-    r.raise_for_status()
+    r.raise_for_status() # type: ignore
 
     return [
         PlayercountEntry(timestamp=ts_ms // 1000, playercount=count)
-        for ts_ms, count in r.json()
+        for ts_ms, count in r.json() # type: ignore
         if count is not None
     ]
 
