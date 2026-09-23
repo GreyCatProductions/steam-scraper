@@ -8,6 +8,9 @@ router = APIRouter(prefix="/apps", tags=["apps"])
 
 @router.get("/stats")
 def stats():
+    """ 
+        Returns information about current scrape progress
+    """
     client = get_client()
     total = client.count_apps()
     remaining = client.count_apps(unscraped_only=True)
@@ -16,12 +19,21 @@ def stats():
 
 @router.get("/next")
 def get_next_batch(batch: int = 50):
+    """ 
+        Claims and returns a batch of apps from the db serer
+    """
     apps = [a for a in get_client().claim_apps(batch) if a.appid != 0]
     return [dataclasses.asdict(a) for a in apps]
 
 
 @router.post("/results")
 def submit_results(results: list[GamePage]):
+    """ 
+        Client that finishes processing his claimed chunk returns his values here.
+        The returned state is checked and scraped_ok tag is set based on that check.
+        The results is saved either way. Scraped_ok is the verification if the data
+        seems correct or not.
+    """
     client = get_client()
     for result in results:
         if not result.is_valid():
@@ -38,5 +50,8 @@ def submit_results(results: list[GamePage]):
 
 @router.post("/fail/{appid}")
 def report_failure(appid: int):
+    """ 
+        Used by client to report failed app scrape attempts
+    """
     get_client().report_failure(appid)
     return {"ok": True}

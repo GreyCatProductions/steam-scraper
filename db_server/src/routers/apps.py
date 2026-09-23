@@ -9,28 +9,45 @@ router = APIRouter(prefix="/apps", tags=["apps"])
 
 @router.post("")
 def add_apps(apps: list[SteamApp]):
+    
+    '''Adds new apps or updates existing ones by appid. 
+    Apps with appid 0 are automatically failed'''
+    
     get_db().add_apps(apps)
     return {"added": len(apps)}
 
 
 @router.get("/claim")
 def claim_apps(amount: int = 50):
+    """ 
+    Claims and returns up to amount random unscraped apps 
+    """
     return [dataclasses.asdict(a) for a in get_db().claim_apps(amount)]
 
 
 @router.get("/count")
 def count_apps(unscraped_only: bool = False):
+    """ 
+        Counts apps
+    """
     return {"count": get_db().count_apps(unscraped_only=unscraped_only)}
 
 
 @router.get("/remaining")
 def remaining_apps(limit: int = 1000):
+    """ 
+        lists appids that are rno scraped yet. Only used for manual debugging
+    """
     limit = max(1, min(limit, 50_000))
     return {"appids": get_db().get_remaining_appids(limit)}
 
 
 @router.post("/results")
 def save_results(results: list[GamePage]):
+    """
+        Endpoint to upload scraped data. Not recommended to debug using this
+    """
+    
     for result in results:
         get_db().save_game_page_info(result)
     return {"saved": len(results)}
@@ -38,5 +55,10 @@ def save_results(results: list[GamePage]):
 
 @router.post("/fail/{appid}")
 def report_failure(appid: int):
+    """
+        Records a failure attempt for an app. App is removed from claimable pool
+        after certain amount of failures
+    """
+    
     get_db().report_failure(appid)
     return {"ok": True}
