@@ -12,16 +12,23 @@ class ProxyPool:
     def __init__(self, proxies: list[str | None], cooldown: tuple[float, float]):
         if not proxies:
             raise ValueError("proxy list is empty")
-        self._proxies = [p if p is None or "://" in p else f"http://{p}" for p in proxies]
+        self._proxies = proxies
         self._benched_until = {p: 0.0 for p in self._proxies}
         self._cooldown = cooldown
         self._next = 0
 
     @classmethod
     def from_file(cls, path: Path, cooldown: tuple[float, float]) -> "ProxyPool":
-        """One proxy per line (e.g. USER:PASSWORD@IP:HTTP_PORT). Blank lines and # comments are ignored."""
-        lines = (line.split("#", 1)[0].strip() for line in path.read_text().splitlines())
-        return cls([line for line in lines if line], cooldown)
+        """One proxy per line, see parse_proxy for the formats. Blank lines and # comments are ignored."""
+        proxies = []
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            line = line.split("#", 1)[0].strip()
+            if line:
+                try:
+                    proxies.append(parse_proxy(line))
+                except ValueError as e:
+                    raise ValueError(f"line {number}: {e}") from None
+        return cls(proxies, cooldown)
 
     @classmethod
     def direct(cls, cooldown: tuple[float, float]) -> "ProxyPool":
@@ -46,6 +53,34 @@ class ProxyPool:
     def bench(self, proxy: str | None, seconds: float) -> None:
         """Keeps the proxy unused for at least the given seconds (never shortens an existing bench)."""
         self._benched_until[proxy] = max(self._benched_until[proxy], time.monotonic() + seconds)
+
+
+def _is_host_port(part: str) -> bool:
+    host, _, port = part.rpartition(":")
+    return bool(host) and port.isdigit()
+
+
+def parse_proxy(line: str) -> str:
+    """Normalizes the common proxy list formats to SCHEME://USER:PASSWORD@HOST:PORT:
+    HOST:PORT, USER:PASSWORD@HOST:PORT, HOST:PORT@USER:PASSWORD, HOST:PORT:USER:PASSWORD,
+    or a full URL like socks5://USER:PASSWORD@HOST:PORT (kept as is)."""
+    if "://" in line:
+        return line
+    if "@" in line:
+        left, right = line.rsplit("@", 1)
+        if _is_host_port(right):
+            return f"http://{left}@{right}"
+        left, right = line.split("@", 1)
+        if _is_host_port(left):
+            return f"http://{right}@{left}"
+    else:
+        parts = line.split(":")
+        if len(parts) == 2 and _is_host_port(line):
+            return f"http://{line}"
+        if len(parts) >= 4 and parts[1].isdigit():
+            return f"http://{parts[2]}:{':'.join(parts[3:])}@{parts[0]}:{parts[1]}"
+    # the line holds credentials, so don't echo it
+    raise ValueError("unrecognized proxy format, expected e.g. USER:PASSWORD@HOST:PORT or HOST:PORT:USER:PASSWORD")
 
 
 def as_requests_proxies(proxy: str | None) -> dict[str, str] | None:
