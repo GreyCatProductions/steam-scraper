@@ -12,7 +12,7 @@ class ProxyPool:
     def __init__(self, proxies: list[str | None], cooldown: tuple[float, float]):
         if not proxies:
             raise ValueError("proxy list is empty")
-        self._proxies = [p if p is None or p.startswith("http") else f"http://{p}" for p in proxies]
+        self._proxies = [p if p is None or "://" in p else f"http://{p}" for p in proxies]
         self._benched_until = {p: 0.0 for p in self._proxies}
         self._cooldown = cooldown
         self._next = 0
