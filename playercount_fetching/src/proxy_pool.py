@@ -1,6 +1,7 @@
 import random
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 
 class ProxyPool:
@@ -60,27 +61,35 @@ def _is_host_port(part: str) -> bool:
     return bool(host) and port.isdigit()
 
 
+def _proxy_url(host_port: str, user: str, password: str) -> str:
+    # credentials are percent-encoded so characters like @ or : in them can't break the URL; requests decodes them
+    return f"http://{quote(user, safe='')}:{quote(password, safe='')}@{host_port}"
+
+
 def parse_proxy(line: str) -> str:
     """Normalizes the common proxy list formats to SCHEME://USER:PASSWORD@HOST:PORT:
-    HOST:PORT, USER:PASSWORD@HOST:PORT, HOST:PORT@USER:PASSWORD, HOST:PORT:USER:PASSWORD,
-    or a full URL like socks5://USER:PASSWORD@HOST:PORT (kept as is)."""
+    HOST:PORT, USER:PASSWORD@HOST:PORT, HOST:PORT@USER:PASSWORD, HOST:PORT@USER@PASSWORD,
+    HOST:PORT:USER:PASSWORD, or a full URL like socks5://USER:PASSWORD@HOST:PORT (kept as is)."""
     if "://" in line:
         return line
     if "@" in line:
-        left, right = line.rsplit("@", 1)
-        if _is_host_port(right):
-            return f"http://{left}@{right}"
-        left, right = line.split("@", 1)
-        if _is_host_port(left):
-            return f"http://{right}@{left}"
+        creds, host_port = line.rsplit("@", 1)
+        if _is_host_port(host_port):
+            user, _, password = creds.partition(":")
+            return _proxy_url(host_port, user, password)
+        host_port, creds = line.split("@", 1)
+        if _is_host_port(host_port):
+            # USER:PASSWORD, or USER@PASSWORD when there is no colon
+            user, _, password = creds.partition(":" if ":" in creds else "@")
+            return _proxy_url(host_port, user, password)
     else:
         parts = line.split(":")
         if len(parts) == 2 and _is_host_port(line):
             return f"http://{line}"
         if len(parts) >= 4 and parts[1].isdigit():
-            return f"http://{parts[2]}:{':'.join(parts[3:])}@{parts[0]}:{parts[1]}"
+            return _proxy_url(f"{parts[0]}:{parts[1]}", parts[2], ":".join(parts[3:]))
     # the line holds credentials, so don't echo it
-    raise ValueError("unrecognized proxy format, expected e.g. USER:PASSWORD@HOST:PORT or HOST:PORT:USER:PASSWORD")
+    raise ValueError("unrecognized proxy format, expected e.g. USER:PASSWORD@HOST:PORT or HOST:PORT@USER@PASSWORD")
 
 
 def as_requests_proxies(proxy: str | None) -> dict[str, str] | None:

@@ -31,8 +31,10 @@ def get_player_numbers(app_id: int, pool: ProxyPool) -> list[PlayercountEntry]:
             if attempt == MAX_RETRIES:
                 raise
             wait = DEAD_PROXY_BENCH_SECONDS if proxy else BACKOFF_BASE_SECONDS * 2 ** attempt
-            log.warning("appid %s: %s unreachable (%s), benching it for %ss (attempt %d/%d)",
-                        app_id, label(proxy), type(e).__name__, wait, attempt + 1, MAX_RETRIES)
+            # requests wraps urllib3's MaxRetryError, whose .reason holds the actual cause (e.g. a 407 from the proxy)
+            reason = getattr(e.args[0], "reason", e) if e.args else e
+            log.warning("appid %s: %s unreachable (%s: %s), benching it for %ss (attempt %d/%d)",
+                        app_id, label(proxy), type(e).__name__, reason, wait, attempt + 1, MAX_RETRIES)
             pool.bench(proxy, wait)
             continue
 
