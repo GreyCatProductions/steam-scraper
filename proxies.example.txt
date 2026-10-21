@@ -1,0 +1,15 @@
+# Use it with: python -m playercount_fetching.src.main --loop --proxies proxies.txt
+# Your own IP is added to the rotation automatically, pass --no-own-ip to leave it out.
+# Blank lines and everything after # are ignored.
+#
+# Accepted formats (plain host:port lines are treated as http proxies):
+#   HOST:PORT
+#   USER:PASSWORD@HOST:PORT
+#   HOST:PORT@USER:PASSWORD
+#   HOST:PORT@USER@PASSWORD
+#   HOST:PORT:USER:PASSWORD
+#   socks5://USER:PASSWORD@HOST:PORT     (any full URL is used as is)
+#
+# Examples:
+# 203.0.113.10:8080
+# myuser:mypassword@203.0.113.11:3128

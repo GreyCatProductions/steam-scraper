@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 *.env
+proxies.txt
 *.venv
 *.json
 *.db
