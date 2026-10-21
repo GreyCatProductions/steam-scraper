@@ -19,9 +19,10 @@ class ProxyPool:
         self._next = 0
 
     @classmethod
-    def from_file(cls, path: Path, cooldown: tuple[float, float]) -> "ProxyPool":
-        """One proxy per line, see parse_proxy for the formats. Blank lines and # comments are ignored."""
-        proxies = []
+    def from_file(cls, path: Path, cooldown: tuple[float, float], own_ip: bool = True) -> "ProxyPool":
+        """One proxy per line, see parse_proxy for the formats. Blank lines and # comments are ignored.
+        With own_ip, our own IP joins the rotation as one more proxy."""
+        proxies: list[str | None] = [None] if own_ip else []
         for number, line in enumerate(path.read_text().splitlines(), start=1):
             line = line.split("#", 1)[0].strip()
             if line:
