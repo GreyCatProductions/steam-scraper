@@ -4,7 +4,7 @@ import requests
 from shared.schema.review import UserReview
 
 
-_REVIEWS_URL = "https://store.steampowered.com/appreviews/{appid}"
+_REVIEWS_URL = "https://store.steampowered.com/ajaxappreviews/{appid}"
 _PER_PAGE = 100
 
 
