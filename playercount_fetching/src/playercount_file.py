@@ -1,8 +1,11 @@
+import logging
 import sqlite3
 from contextlib import closing
 from pathlib import Path
 
 from playercount_fetching.schema.appPlayerCount import AppPlayerCount
+
+log = logging.getLogger(__name__)
 
 DB_TIMEOUT_SECONDS = 30
 
@@ -20,6 +23,19 @@ UPSERT = """
     INSERT INTO playercounts (appid, timestamp, playercount) VALUES (?, ?, ?)
     ON CONFLICT (appid, timestamp) DO UPDATE SET playercount = excluded.playercount
 """
+
+
+def enable_wal(conn: sqlite3.Connection) -> None:
+    """Switches the file to WAL journaling (stored in the file, so this only does work once). In WAL mode readers,
+    like the health checker or a manual query, never block our writes, so a long read can't make a save time out.
+    Best effort: if the switch fails, saving works as before in the default rollback journal mode."""
+    try:
+        mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+    except sqlite3.Error as e:
+        log.warning("couldn't switch to WAL journal mode, keeping the default: %s", e)
+        return
+    if mode.lower() != "wal":
+        log.warning("couldn't switch to WAL journal mode, still %s", mode)
 
 
 class PlayercountFile:
@@ -40,6 +56,7 @@ class PlayercountFile:
     def start_round(self, restart: bool) -> int:
         """Creates the table if needed. Returns the last appid saved by an interrupted round, or 0 for a fresh round."""
         with closing(self._connect()) as conn:
+            enable_wal(conn)
             conn.execute(CREATE_TABLE)
             if restart:
                 conn.execute("PRAGMA user_version = 0")

@@ -1,6 +1,6 @@
 import dataclasses
-from fastapi import APIRouter
-from db_server.src.database import get_db
+from fastapi import APIRouter, HTTPException
+from db_server.src.database import StatsBusy, get_db
 from shared.schema.data_objects import SteamApp
 from shared.schema.steamPage import GamePage
 
@@ -31,6 +31,18 @@ def count_apps(unscraped_only: bool = False):
         Counts apps
     """
     return {"count": get_db().count_apps(unscraped_only=unscraped_only)}
+
+
+@router.get("/stats")
+def scrape_stats():
+    """
+        Success and failure counts of the current scrape, used by the health checker.
+        Answers 503 rather than slow the scrape down, see Database.scrape_stats
+    """
+    try:
+        return get_db().scrape_stats()
+    except StatsBusy as e:
+        raise HTTPException(status_code=503, detail=str(e))
 
 
 @router.get("/remaining")

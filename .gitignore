@@ -16,6 +16,7 @@ proxies.txt
 *.db
 *tmp*
 *.html
+*__init__*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
