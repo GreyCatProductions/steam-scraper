@@ -14,7 +14,6 @@
   },
 
   "services": [
-    {"name": "processing_server", "url": "http://127.0.0.1:8000"},
     {"name": "db_server", "url": "http://127.0.0.1:8001"},
     {"name": "playercount_fetching", "url": "http://127.0.0.1:8002"}
   ],

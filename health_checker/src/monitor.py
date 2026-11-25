@@ -24,7 +24,9 @@ from rich.text import Text
 from health_checker.src.checks import CheckResult, ServicePinger, Status
 from health_checker.src.config import ServiceConfig
 
-DEFAULT_PORTS = {"processing_server": 8000, "db_server": 8001, "playercount_fetching": 8002}
+# the services on the scraper machine; the processing server runs on another device, add it with
+# --service processing_server=http://IP:8000 if this device can reach it
+DEFAULT_PORTS = {"db_server": 8001, "playercount_fetching": 8002}
 DEFAULT_CHECKER_PORT = 8003
 STYLES = {Status.OK: "green", Status.WARN: "yellow", Status.FAIL: "bold red"}
 LABELS = {Status.OK: " OK ", Status.WARN: "WARN", Status.FAIL: "FAIL"}
