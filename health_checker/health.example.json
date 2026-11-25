@@ -1,0 +1,88 @@
+{
+  "backup_dir": "backups",
+  "host": "0.0.0.0",
+  "port": 8003,
+  "webhook_url": null,
+
+  "intervals": {
+    "services_seconds": 60,
+    "progress_seconds": 300,
+    "quality_seconds": 300,
+    "disk_seconds": 300,
+    "databases_seconds": 900,
+    "backups_seconds": 3600
+  },
+
+  "services": [
+    {"name": "processing_server", "url": "http://127.0.0.1:8000"},
+    {"name": "db_server", "url": "http://127.0.0.1:8001"},
+    {"name": "playercount_fetching", "url": "http://127.0.0.1:8002"}
+  ],
+
+  "progress": {"url": "http://127.0.0.1:8001", "stall_minutes": 30},
+
+  "quality": {
+    "url": "http://127.0.0.1:8001",
+    "warn_failed_percent": 10,
+    "fail_failed_percent": 30,
+    "min_finished": 200,
+    "window_minutes": 60,
+    "min_window_events": 50
+  },
+
+  "disks": [
+    {"path": ".", "min_free_gb": 20, "min_free_percent": 5},
+    {"path": "backups", "min_free_gb": 20, "min_free_percent": 5}
+  ],
+
+  "databases": [
+    {
+      "name": "steam",
+      "path": "steam.db",
+      "min_bytes": 1000000,
+      "max_mtime_age_minutes": 60,
+      "pause_when_scrape_idle": true,
+      "integrity": "none",
+      "max_read_seconds": 10,
+      "tables": [
+        {"name": "apps", "min_rows": 100000, "pause_when_scrape_idle": true},
+        {"name": "reviews", "min_rows": 1000000, "fresh_column": "last_seen", "max_age_hours": 24,
+         "min_growth_rows": 1, "growth_window_minutes": 120, "pause_when_scrape_idle": true}
+      ]
+    },
+    {
+      "name": "playercounts",
+      "path": "playercounts.sqlite",
+      "min_bytes": 1000000,
+      "max_mtime_age_minutes": 30,
+      "tables": [
+        {"name": "playercounts", "min_rows": 1000000, "min_growth_rows": 1000, "growth_window_minutes": 1440}
+      ]
+    }
+  ],
+
+  "backups": [
+    {
+      "name": "apps",
+      "stem": "steam",
+      "min_bytes": 1000000,
+      "max_age_hours": 192,
+      "tables": [{"name": "apps", "min_rows": 100000}]
+    },
+    {
+      "name": "reviews",
+      "stem": "steam_reviews",
+      "min_bytes": 10000000,
+      "max_age_hours": null,
+      "tables": [{"name": "reviews", "min_rows": 1000000}]
+    },
+    {
+      "name": "playercounts",
+      "stem": "playercounts",
+      "min_bytes": 1000000,
+      "max_age_hours": 48,
+      "max_shrink_percent": 1,
+      "tables": [{"name": "playercounts", "min_rows": 1000000}]
+    }
+  ]
+}
