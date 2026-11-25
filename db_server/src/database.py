@@ -15,12 +15,6 @@ from shared.schema.steamPage import GamePage
 log = logging.getLogger(__name__)
 
 FAILURE_THRESHOLD = 10
-# the stats query for the health checker is aborted after this long, so it can never cost the scrape much
-STATS_MAX_SECONDS = 20
-
-
-class StatsBusy(Exception):
-    """The stats query was skipped or aborted, to keep it from slowing down the scrape."""
 
 
 def next_backup_path(backup_dir: Path, stem: str) -> Path:
@@ -39,7 +33,6 @@ class Database:
         conn = sqlite3.connect(path, check_same_thread=False)
         self._db = sqlite_utils.Database(conn)
         self._lock = threading.Lock()
-        self._stats_lock = threading.Lock()
         self._db.execute("PRAGMA journal_mode=WAL")  # type: ignore
         self._db.execute("PRAGMA synchronous=NORMAL")  # type: ignore
         self._db.execute("PRAGMA cache_size=-64000")  # type: ignore
@@ -111,44 +104,6 @@ class Database:
             if unscraped_only and self._scraped_col_exists():
                 return table.count_where("scraped_ok IS NOT 1 AND scraped_ok IS NOT -1")
             return table.count
-
-    def scrape_stats(self) -> dict:
-        '''
-            Counts for the health checker, in one scan of the apps table: how many apps succeeded (scraped_ok=1),
-            were given up on (scraped_ok=-1), and how many failed attempts were reported in total (fail_count).
-            Never slows the scrape down: it reads over its own read-only connection instead of taking self._lock
-            (WAL lets it read while the scrape writes), only one runs at a time, and it is aborted after
-            STATS_MAX_SECONDS. Raises StatsBusy instead.
-        '''
-        if not self._stats_lock.acquire(blocking=False):
-            raise StatsBusy("a stats query is already running")
-        try:
-            deadline = time.monotonic() + STATS_MAX_SECONDS
-            conn = sqlite3.connect(f"file:{Path(self._path).resolve()}?mode=ro", uri=True, timeout=1)
-            try:
-                # a non-zero return makes sqlite abort the running query with "interrupted"
-                conn.set_progress_handler(lambda: time.monotonic() > deadline, 10_000)
-                row = conn.execute(
-                    """
-                    SELECT COUNT(*),
-                           COALESCE(SUM(scraped_ok IS 1), 0),
-                           COALESCE(SUM(scraped_ok IS -1), 0),
-                           COALESCE(SUM(COALESCE(fail_count, 0)), 0),
-                           COALESCE(SUM(reviews_scraped IS 1), 0)
-                    FROM apps WHERE appid != 0
-                    """
-                ).fetchone()
-            finally:
-                conn.close()
-        except sqlite3.OperationalError as e:
-            raise StatsBusy(f"stats query gave up ({e})") from e
-        finally:
-            self._stats_lock.release()
-        total, ok, failed, fail_attempts, reviews_done = row
-        return {
-            "total": total, "ok": ok, "failed": failed, "pending": total - ok - failed,
-            "fail_attempts": fail_attempts, "reviews_done": reviews_done,
-        }
 
     def get_remaining_appids(self, limit: int) -> list[int]:
         with self._lock:

@@ -2,7 +2,6 @@ beautifulsoup4==4.15.0
 fastapi==0.157.0
 python-dotenv==1.2.4
 Requests==2.34.2
-rich==14.3.4
 sqlite_utils==3.39
 tqdm==4.67.2
 uvicorn==0.54.0

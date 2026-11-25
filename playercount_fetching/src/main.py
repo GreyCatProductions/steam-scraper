@@ -18,7 +18,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 
 from playercount_fetching.schema.appPlayerCount import AppPlayerCount
 from playercount_fetching.src.api import BackupController, backup_file, backup_tables, create_app
-from playercount_fetching.src.playercount_file import PlayercountFile, enable_wal
+from playercount_fetching.src.playercount_file import PlayercountFile
 from playercount_fetching.src.proxy_pool import ProxyPool
 from playercount_fetching.src.steam_db_scraper import get_player_numbers, REQUEST_COOLDOWN_SECONDS_MIN, REQUEST_COOLDOWN_SECONDS_MAX
 from processing_server.src.appListBuilder import fetch_all_apps
@@ -133,7 +133,6 @@ def parse_args() -> argparse.Namespace:
 
 def init_tables(db: Path) -> None:
     with closing(sqlite3.connect(db, timeout=DB_TIMEOUT_SECONDS)) as conn:
-        enable_wal(conn)
         with conn:
             conn.execute(CREATE_PLAYERCOUNTS_TABLE)
             conn.execute(CREATE_FETCHED_TABLE)
